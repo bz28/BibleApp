@@ -193,6 +193,7 @@ export default function Wordle() {
     <View style={styles.container}>
       <Text style={styles.title}>Wordle</Text>
       <Text style={styles.title}>{currentVerse.hint}</Text>
+      <Text style={styles.title}>{"Guess the Character"}</Text>
       <View style={styles.grid}>{renderGrid()}</View>
       <View style={styles.keyboard}>{renderKeyboard()}</View>
     </View>
@@ -202,26 +203,29 @@ export default function Wordle() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
     padding: 20,
     backgroundColor: "#f3f3f3",
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 10,
+    textAlign: 'center',
   },
   grid: {
-    marginBottom: 20,
+    flex: 1,
+    justifyContent: 'center',
+    marginVertical: 20,
   },
   row: {
     flexDirection: "row",
     marginBottom: 5,
   },
   letterBox: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     margin: 2,
     justifyContent: "center",
     alignItems: "center",

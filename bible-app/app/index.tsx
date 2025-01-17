@@ -7,7 +7,6 @@ export default function Home() {
       <Text style={styles.title}>Bible Word Games</Text>
       <Link href="/wordle" style={styles.link}>
         Play Wordle
-        console.log("Play Wordle");
       </Link>
 
     </View>
