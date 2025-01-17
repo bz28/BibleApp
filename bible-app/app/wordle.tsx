@@ -1,13 +1,67 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions } from "react-native";
 
-const TARGET_WORD = "REACT";
+
 const MAX_GUESSES = 5;
 const SCREEN_WIDTH = Dimensions.get("window").width;
+
+const verses = [
+  {
+    hint: "I am the way, and the truth, and the life. No one comes to the Father except through me.",
+    answer: "Jesus"
+  },
+  {
+    hint: "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
+    answer: "John"
+  },
+  {
+    hint: "Eye for eye, tooth for tooth, hand for hand, foot for foot, burn for burn, wound for wound, bruise for bruise",
+    answer: "Moses"
+  },
+  {
+    hint: "I am the good shepherd. The good shepherd lays down his life for the sheep.",
+    answer: "Jesus"
+  },
+  {
+    hint: "I heard thy voice in the garden, and I was afraid, because I was naked; and I hid myself",
+    answer: "Adam"
+  },
+  {
+    hint: "Behold the Lamb of God who takes away the sin of the world",
+    answer: "John"
+  }
+  ,
+  {
+    hint: "From then on ___ watched for an opportunity to hand him over.",
+    answer: "Judas"
+  }
+  ,
+  {
+    hint: "I am the vine, ye are the branches: He that abideth in me, and I in him, the same bringeth forth much fruit: for without me ye can do nothing",
+    answer: "John"
+  }
+
+
+  ,
+  {
+    hint: "I can do all things through Christ who strengthens me",
+    answer: "Paul"
+  }
+
+  ,
+  {
+    hint: "Are You the King of the Jews?",
+    answer: "Pilate"
+  }
+];
+
+
+
 
 export default function Wordle() {
   const [guesses, setGuesses] = useState<string[]>(Array(MAX_GUESSES).fill(""));
   const [currentRow, setCurrentRow] = useState(0);
+  const [currentVerse, setCurrentVerse] = useState(verses[Math.floor(Math.random() * verses.length)]);
 
   const handleKeyPress = (key: string) => {
     const currentGuess = guesses[currentRow];
@@ -18,23 +72,25 @@ export default function Wordle() {
         return updatedGuesses;
       });
     } else if (key === "ENTER") {
-      if (currentGuess.length !== 5) {
+      if (currentGuess.length !== currentVerse.answer.length) {
         Alert.alert("Invalid Guess", "Must fill in every box.");
         return;
       }
 
-      if (currentGuess === TARGET_WORD) {
-        Alert.alert("Congratulations!", "You guessed the word!");
+      if (currentGuess.toUpperCase() === currentVerse.answer.toUpperCase()) {
+        setCurrentRow(currentRow + 1);
+        Alert.alert("Congratulations!", "You guessed the Character!");
         return;
       }
 
       if (currentRow === MAX_GUESSES - 1) {
-        Alert.alert("Game Over", `The correct verse is: ${TARGET_WORD}`);
+        setCurrentRow(currentRow + 1);
+        Alert.alert("Game Over", `The correct answer was: ${currentVerse.answer}`);
         return;
       }
 
       setCurrentRow(currentRow + 1);
-    } else if (currentGuess.length < 5) {
+    } else if (currentGuess.length < currentVerse.answer.length) {
       setGuesses((prev) => {
         const updatedGuesses = [...prev];
         updatedGuesses[currentRow] = currentGuess + key;
@@ -43,18 +99,50 @@ export default function Wordle() {
     }
   };
 
+  const getLetterColor = (guess: string, index: number, answer: string): string => {
+    if (!guess[index]) return "#fff"; // White background for empty cells
+
+    const guessLetter = guess[index].toUpperCase();
+    const answerLetter = answer[index].toUpperCase();
+
+    if (guessLetter === answerLetter) {
+      return "#6aaa64"; // Green for correct letter and position
+    }
+
+    if (answer.toUpperCase().includes(guessLetter)) {
+      return "#c9b458"; // Yellow for correct letter, wrong position
+    }
+
+    return "red"; // Gray for incorrect letter
+  };
+
   const renderGrid = () => {
     return guesses.map((guess, rowIndex) => (
       <View key={rowIndex} style={styles.row}>
-        {Array(5)
+        {Array(currentVerse.answer.length)
           .fill("")
-          .map((_, colIndex) => (
-            <View key={colIndex} style={styles.letterBox}>
-              <Text style={styles.letterText}>
-                {guess[colIndex] || ""}
-              </Text>
-            </View>
-          ))}
+          .map((_, colIndex) => {
+            const backgroundColor = rowIndex < currentRow
+              ? getLetterColor(guess, colIndex, currentVerse.answer)
+              : "#fff";
+
+            return (
+              <View
+                key={colIndex}
+                style={[
+                  styles.letterBox,
+                  { backgroundColor }
+                ]}
+              >
+                <Text style={[
+                  styles.letterText,
+                  backgroundColor !== "#fff" && { color: "#fff" }
+                ]}>
+                  {guess[colIndex] || ""}
+                </Text>
+              </View>
+            );
+          })}
       </View>
     ));
   };
@@ -104,6 +192,7 @@ export default function Wordle() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Wordle</Text>
+      <Text style={styles.title}>{currentVerse.hint}</Text>
       <View style={styles.grid}>{renderGrid()}</View>
       <View style={styles.keyboard}>{renderKeyboard()}</View>
     </View>
