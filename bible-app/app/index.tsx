@@ -5,8 +5,8 @@ export default function Home() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Bible Word Games</Text>
-      <Link href="/wordle" style={styles.link}>
-        Play Wordle
+      <Link href="/wordle" style={styles.button}>
+        <Text style={styles.buttonText}>Play Wordle</Text>
       </Link>
 
     </View>
@@ -29,5 +29,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "blue",
     marginVertical: 10,
+  },
+
+
+  button: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 8,
+    marginVertical: 10,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

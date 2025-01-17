@@ -79,13 +79,40 @@ export default function Wordle() {
 
       if (currentGuess.toUpperCase() === currentVerse.answer.toUpperCase()) {
         setCurrentRow(currentRow + 1);
-        Alert.alert("Congratulations!", "You guessed the Character!");
+        Alert.alert(
+          "Congratulations!",
+          "You guessed the Character!",
+          [
+            {
+              text: "Play Again",
+              onPress: () => {
+                setCurrentVerse(verses[Math.floor(Math.random() * verses.length)]);
+                setGuesses(Array(MAX_GUESSES).fill(""));
+                setCurrentRow(0);
+              },
+            },
+          ]
+        );
         return;
       }
 
       if (currentRow === MAX_GUESSES - 1) {
         setCurrentRow(currentRow + 1);
-        Alert.alert("Game Over", `The correct answer was: ${currentVerse.answer}`);
+        Alert.alert("Game Over", `The correct answer was: ${currentVerse.answer}`,
+          [
+            {
+              text: "Play Again",
+              onPress: () => {
+                setCurrentVerse(verses[Math.floor(Math.random() * verses.length)]);
+                setGuesses(Array(MAX_GUESSES).fill(""));
+                setCurrentRow(0);
+              },
+            },
+          ]
+
+
+
+        );
         return;
       }
 
