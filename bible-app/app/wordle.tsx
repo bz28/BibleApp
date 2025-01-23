@@ -1,69 +1,51 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions } from "react-native";
-
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator } from "react-native";
+import { initDatabase, getRandomVerse } from './database/database';
+import { Verse } from './database/schema';
 
 const MAX_GUESSES = 5;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-const verses = [
-  {
-    hint: "I am the way, and the truth, and the life. No one comes to the Father except through me.",
-    answer: "Jesus"
-  },
-  {
-    hint: "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
-    answer: "John"
-  },
-  {
-    hint: "Eye for eye, tooth for tooth, hand for hand, foot for foot, burn for burn, wound for wound, bruise for bruise",
-    answer: "Moses"
-  },
-  {
-    hint: "I am the good shepherd. The good shepherd lays down his life for the sheep.",
-    answer: "Jesus"
-  },
-  {
-    hint: "I heard thy voice in the garden, and I was afraid, because I was naked; and I hid myself",
-    answer: "Adam"
-  },
-  {
-    hint: "Behold the Lamb of God who takes away the sin of the world",
-    answer: "John"
-  }
-  ,
-  {
-    hint: "From then on ___ watched for an opportunity to hand him over.",
-    answer: "Judas"
-  }
-  ,
-  {
-    hint: "I am the vine, ye are the branches: He that abideth in me, and I in him, the same bringeth forth much fruit: for without me ye can do nothing",
-    answer: "John"
-  }
-
-
-  ,
-  {
-    hint: "I can do all things through Christ who strengthens me",
-    answer: "Paul"
-  }
-
-  ,
-  {
-    hint: "Are You the King of the Jews?",
-    answer: "Pilate"
-  }
-];
-
-
-
-
 export default function Wordle() {
   const [guesses, setGuesses] = useState<string[]>(Array(MAX_GUESSES).fill(""));
   const [currentRow, setCurrentRow] = useState(0);
-  const [currentVerse, setCurrentVerse] = useState(verses[Math.floor(Math.random() * verses.length)]);
+  const [currentVerse, setCurrentVerse] = useState<Verse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const setupGame = async () => {
+      try {
+        await initDatabase();
+        const verse = await getRandomVerse();
+        setCurrentVerse(verse);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error setting up game:', error);
+        Alert.alert('Error', 'Failed to load game data');
+      }
+    };
+
+    setupGame();
+  }, []);
+
+  const loadNewVerse = async () => {
+    try {
+      setIsLoading(true);
+      const verse = await getRandomVerse();
+      setCurrentVerse(verse);
+      setGuesses(Array(MAX_GUESSES).fill(""));
+      setCurrentRow(0);
+    } catch (error) {
+      console.error('Error loading new verse:', error);
+      Alert.alert('Error', 'Failed to load new verse');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleKeyPress = (key: string) => {
+    if (!currentVerse) return;
+
     const currentGuess = guesses[currentRow];
     if (key === "BACKSPACE") {
       setGuesses((prev) => {
@@ -85,11 +67,7 @@ export default function Wordle() {
           [
             {
               text: "Play Again",
-              onPress: () => {
-                setCurrentVerse(verses[Math.floor(Math.random() * verses.length)]);
-                setGuesses(Array(MAX_GUESSES).fill(""));
-                setCurrentRow(0);
-              },
+              onPress: loadNewVerse
             },
           ]
         );
@@ -98,20 +76,15 @@ export default function Wordle() {
 
       if (currentRow === MAX_GUESSES - 1) {
         setCurrentRow(currentRow + 1);
-        Alert.alert("Game Over", `The correct answer was: ${currentVerse.answer}`,
+        Alert.alert(
+          "Game Over",
+          `The correct answer was: ${currentVerse.answer}`,
           [
             {
               text: "Play Again",
-              onPress: () => {
-                setCurrentVerse(verses[Math.floor(Math.random() * verses.length)]);
-                setGuesses(Array(MAX_GUESSES).fill(""));
-                setCurrentRow(0);
-              },
+              onPress: loadNewVerse
             },
           ]
-
-
-
         );
         return;
       }
@@ -127,7 +100,7 @@ export default function Wordle() {
   };
 
   const getLetterColor = (guess: string, index: number, answer: string): string => {
-    if (!guess[index]) return "#fff"; // White background for empty cells
+    if (!guess[index]) return "#fff";
 
     const guessLetter = guess[index].toUpperCase();
     const answerLetter = answer[index].toUpperCase();
@@ -140,10 +113,12 @@ export default function Wordle() {
       return "#c9b458"; // Yellow for correct letter, wrong position
     }
 
-    return "red"; // Gray for incorrect letter
+    return "red"; // Red for incorrect letter
   };
 
   const renderGrid = () => {
+    if (!currentVerse) return null;
+
     return guesses.map((guess, rowIndex) => (
       <View key={rowIndex} style={styles.row}>
         {Array(currentVerse.answer.length)
@@ -181,8 +156,7 @@ export default function Wordle() {
       "ZXCVBNM",
     ];
 
-    // Calculate dynamic key sizes
-    const keyWidth = (SCREEN_WIDTH - 40) / 10; // Adjust based on screen width and spacing
+    const keyWidth = (SCREEN_WIDTH - 40) / 10;
     const keyHeight = keyWidth * 1.2;
 
     return keys.map((row, rowIndex) => (
@@ -216,9 +190,18 @@ export default function Wordle() {
     ));
   };
 
+  if (isLoading || !currentVerse) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Wordle</Text>
+      <Text style={styles.title}>Bible Wordle</Text>
       <Text style={styles.title}>{currentVerse.hint}</Text>
       <Text style={styles.title}>{"Guess the Character"}</Text>
       <View style={styles.grid}>{renderGrid()}</View>
@@ -293,6 +276,14 @@ const styles = StyleSheet.create({
   keyText: {
     fontSize: 16,
     fontWeight: "bold",
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
   },
 });
 
