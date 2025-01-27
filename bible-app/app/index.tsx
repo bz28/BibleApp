@@ -1,7 +1,19 @@
 import { View, Text, StyleSheet } from "react-native";
 import { Link } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from "react-native";
 
 export default function Home() {
+  const clearStorage = async () => {
+    try {
+      await AsyncStorage.clear();
+      Alert.alert('Success', 'Storage cleared');
+    } catch (error) {
+      console.error('Error clearing storage:', error);
+      Alert.alert('Error', 'Failed to clear storage');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Bible Word Games</Text>
@@ -9,6 +21,15 @@ export default function Home() {
         <Text style={styles.buttonText}>Play Wordle</Text>
       </Link>
 
+      {/* Only show in development */}
+      {__DEV__ && (
+        <Text
+          style={styles.debugButton}
+          onPress={clearStorage}
+        >
+          Clear Storage (Debug)
+        </Text>
+      )}
     </View>
   );
 }
@@ -43,5 +64,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  debugButton: {
+    marginTop: 20,
+    color: 'red',
+    textDecorationLine: 'underline',
   },
 });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator } from "react-native";
 import { initDatabase, getRandomVerse } from './database/database';
 import { Verse } from './database/schema';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MAX_GUESSES = 5;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -11,14 +12,30 @@ export default function Wordle() {
   const [currentRow, setCurrentRow] = useState(0);
   const [currentVerse, setCurrentVerse] = useState<Verse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [gameCompleted, setGameCompleted] = useState(false);
+
+
 
   useEffect(() => {
     const setupGame = async () => {
       try {
         await initDatabase();
-        const verse = await getRandomVerse();
-        setCurrentVerse(verse);
-        setIsLoading(false);
+
+        const canPlay = await checkIfCanPlay();
+
+        if (!canPlay) {
+          setGameCompleted(true);
+          setIsLoading(false);
+          Alert.alert(
+            "Wait until tomorrow",
+            "You can play again tomorrow"
+          );
+          return;
+        }
+
+        console.log('Debug - Loading new verse: No restrictions');
+        await loadNewVerse();
+
       } catch (error) {
         console.error('Error setting up game:', error);
         Alert.alert('Error', 'Failed to load game data');
@@ -27,6 +44,41 @@ export default function Wordle() {
 
     setupGame();
   }, []);
+
+
+  const checkIfCanPlay = async () => {
+    const lastPlayed = await AsyncStorage.getItem('lastPlayed');
+    console.log('Debug - Last Played:', lastPlayed ? new Date(parseInt(lastPlayed)).toString() : 'never played');
+
+    if (lastPlayed) {
+      const lastPlayedDate = new Date(parseInt(lastPlayed));
+      const now = new Date();
+
+      const isSameDay = lastPlayedDate.getDate() === now.getDate() &&
+        lastPlayedDate.getMonth() === now.getMonth() &&
+        lastPlayedDate.getFullYear() === now.getFullYear();
+
+      console.log('Debug - Time Check:', {
+        lastPlayedDate: lastPlayedDate.toString(),
+        now: now.toString(),
+        isSameDay,
+        lastPlayedDay: lastPlayedDate.getDate(),
+        currentDay: now.getDate()
+      });
+
+      if (isSameDay) {
+        console.log('Debug - Still waiting for next day');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+
+
+
+
 
   const loadNewVerse = async () => {
     try {
@@ -44,7 +96,7 @@ export default function Wordle() {
   };
 
   const handleKeyPress = (key: string) => {
-    if (!currentVerse) return;
+    if (!currentVerse || gameCompleted) return;
 
     const currentGuess = guesses[currentRow];
     if (key === "BACKSPACE") {
@@ -61,30 +113,26 @@ export default function Wordle() {
 
       if (currentGuess.toUpperCase() === currentVerse.answer.toUpperCase()) {
         setCurrentRow(currentRow + 1);
+        setGameCompleted(true);
+        // Save their attempt time
+        AsyncStorage.setItem('lastPlayed', new Date().getTime().toString());
         Alert.alert(
           "Congratulations!",
-          "You guessed the Character!",
-          [
-            {
-              text: "Play Again",
-              onPress: loadNewVerse
-            },
-          ]
+          "You guessed the Figure! Come back at midnight EST for a new verse.",
+          [{ text: "OK" }]
         );
         return;
       }
 
       if (currentRow === MAX_GUESSES - 1) {
         setCurrentRow(currentRow + 1);
+        setGameCompleted(true);
+        // Save their attempt time
+        AsyncStorage.setItem('lastPlayed', new Date().getTime().toString());
         Alert.alert(
           "Game Over",
-          `The correct answer was: ${currentVerse.answer}`,
-          [
-            {
-              text: "Play Again",
-              onPress: loadNewVerse
-            },
-          ]
+          `The correct answer was: ${currentVerse.answer}\nCome back at midnight EST for a new verse.`,
+          [{ text: "OK" }]
         );
         return;
       }
