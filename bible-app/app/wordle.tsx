@@ -28,7 +28,17 @@ export default function Wordle() {
           setIsLoading(false);
           Alert.alert(
             "Wait until tomorrow",
-            "You can play again tomorrow"
+            "You can play again tomorrow",
+            [
+              { text: "OK" },
+              {
+                text: "Pay to play again (Ad)",
+                onPress: async () => {
+                  await loadNewVerse();
+                  setGameCompleted(false);
+                }
+              }
+            ]
           );
           return;
         }
@@ -119,7 +129,16 @@ export default function Wordle() {
         Alert.alert(
           "Congratulations!",
           "You guessed the Figure! Come back at midnight EST for a new verse.",
-          [{ text: "OK" }]
+          [
+            { text: "OK" },
+            {
+              text: "Play again (Ad)",
+              onPress: async () => {
+                await loadNewVerse();
+                setGameCompleted(false);
+              }
+            }
+          ]
         );
         return;
       }
@@ -132,7 +151,16 @@ export default function Wordle() {
         Alert.alert(
           "Game Over",
           `The correct answer was: ${currentVerse.answer}\nCome back at midnight EST for a new verse.`,
-          [{ text: "OK" }]
+          [
+            { text: "OK" },
+            {
+              text: "Play again (Ad)",
+              onPress: async () => {
+                await loadNewVerse();
+                setGameCompleted(false);
+              }
+            }
+          ]
         );
         return;
       }
