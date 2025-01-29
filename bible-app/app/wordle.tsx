@@ -14,15 +14,18 @@ export default function Wordle() {
   const [isLoading, setIsLoading] = useState(true);
   const [gameCompleted, setGameCompleted] = useState(false);
 
-
-
   useEffect(() => {
     const setupGame = async () => {
       try {
         await initDatabase();
 
-        const canPlay = await checkIfCanPlay();
+        // Try to load saved state first
+        const hasLoadedState = await loadGameState();
+        if (hasLoadedState) {
+          return;
+        }
 
+        const canPlay = await checkIfCanPlay();
         if (!canPlay) {
           setGameCompleted(true);
           setIsLoading(false);
@@ -55,6 +58,9 @@ export default function Wordle() {
     setupGame();
   }, []);
 
+  useEffect(() => {
+    saveGameState();
+  }, [guesses, currentRow, currentVerse, gameCompleted]);
 
   const checkIfCanPlay = async () => {
     const lastPlayed = await AsyncStorage.getItem('lastPlayed');
@@ -84,11 +90,6 @@ export default function Wordle() {
 
     return true;
   };
-
-
-
-
-
 
   const loadNewVerse = async () => {
     try {
@@ -132,10 +133,11 @@ export default function Wordle() {
           [
             { text: "OK" },
             {
-              text: "Play again (Ad)",
+              text: "Pay to play again (Ad)",
               onPress: async () => {
                 await loadNewVerse();
                 setGameCompleted(false);
+                await AsyncStorage.removeItem('gameState');
               }
             }
           ]
@@ -154,10 +156,11 @@ export default function Wordle() {
           [
             { text: "OK" },
             {
-              text: "Play again (Ad)",
+              text: "Pay to play again (Ad)",
               onPress: async () => {
                 await loadNewVerse();
                 setGameCompleted(false);
+                await AsyncStorage.removeItem('gameState');
               }
             }
           ]
@@ -266,6 +269,67 @@ export default function Wordle() {
     ));
   };
 
+  const saveGameState = async () => {
+    if (!currentVerse) return;
+
+    const gameState = {
+      guesses,
+      currentRow,
+      currentVerse,
+      gameCompleted,
+    };
+
+    try {
+      await AsyncStorage.setItem('gameState', JSON.stringify(gameState));
+    } catch (error) {
+      console.error('Error saving game state:', error);
+    }
+  };
+
+  const loadGameState = async () => {
+    try {
+      const savedState = await AsyncStorage.getItem('gameState');
+      if (savedState) {
+        const gameState = JSON.parse(savedState);
+        setGuesses(gameState.guesses);
+        setCurrentRow(gameState.currentRow);
+        setCurrentVerse(gameState.currentVerse);
+        setGameCompleted(gameState.gameCompleted);
+        setIsLoading(false);
+
+        // Show alert if game was completed
+        if (gameState.gameCompleted) {
+          const isWin = gameState.guesses[gameState.currentRow - 1].toUpperCase() === gameState.currentVerse.answer.toUpperCase();
+
+          Alert.alert(
+            isWin ? "Congratulations!" : "Game Over",
+            isWin
+              ? "You guessed the Figure! Come back at midnight EST for a new verse."
+              : `The correct answer was: ${gameState.currentVerse.answer}\nCome back at midnight EST for a new verse.`,
+            [
+              { text: "OK" },
+              {
+                text: "Pay to play again (Ad)",
+                onPress: async () => {
+                  await loadNewVerse();
+                  setGameCompleted(false);
+                  await AsyncStorage.removeItem('gameState');
+                }
+              }
+            ]
+          );
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error loading game state:', error);
+      return false;
+    }
+  };
+
+
+
   if (isLoading || !currentVerse) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -274,6 +338,13 @@ export default function Wordle() {
       </View>
     );
   }
+
+
+
+
+
+
+
 
   return (
     <View style={styles.container}>
@@ -284,7 +355,17 @@ export default function Wordle() {
       <View style={styles.keyboard}>{renderKeyboard()}</View>
     </View>
   );
+
+
+
 }
+
+
+
+
+
+
+
 
 const styles = StyleSheet.create({
   container: {
