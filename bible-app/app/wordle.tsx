@@ -19,12 +19,7 @@ export default function Wordle() {
       try {
         await initDatabase();
 
-        // Try to load saved state first
-        const hasLoadedState = await loadGameState();
-        if (hasLoadedState) {
-          return;
-        }
-
+        // Check if we can play today
         const canPlay = await checkIfCanPlay();
         if (!canPlay) {
           setGameCompleted(true);
@@ -33,10 +28,25 @@ export default function Wordle() {
             "Wait until tomorrow",
             "You can play again tomorrow",
             [
-              { text: "OK" },
+              {
+                text: "OK",
+                onPress: async () => {
+                  // Load their last game state to show them
+                  const savedState = await AsyncStorage.getItem('gameState');
+                  if (savedState) {
+                    const gameState = JSON.parse(savedState);
+                    setGuesses(gameState.guesses);
+                    setCurrentRow(gameState.currentRow);
+                    setCurrentVerse(gameState.currentVerse);
+                    setGameCompleted(true);
+                    setIsLoading(false);
+                  }
+                }
+              },
               {
                 text: "Pay to play again (Ad)",
                 onPress: async () => {
+                  await AsyncStorage.removeItem('lastPlayed');
                   await loadNewVerse();
                   setGameCompleted(false);
                 }
@@ -46,9 +56,14 @@ export default function Wordle() {
           return;
         }
 
+        // If we can play, try to load saved state
+        const hasLoadedState = await loadGameState();
+        if (hasLoadedState) {
+          return;
+        }
+
         console.log('Debug - Loading new verse: No restrictions');
         await loadNewVerse();
-
       } catch (error) {
         console.error('Error setting up game:', error);
         Alert.alert('Error', 'Failed to load game data');
@@ -110,6 +125,7 @@ export default function Wordle() {
     if (!currentVerse || gameCompleted) return;
 
     const currentGuess = guesses[currentRow];
+    //if the key pressed is backspace, remove the last letter from the current guess
     if (key === "BACKSPACE") {
       setGuesses((prev) => {
         const updatedGuesses = [...prev];
@@ -122,22 +138,27 @@ export default function Wordle() {
         return;
       }
 
+      //check if the guess is correct
       if (currentGuess.toUpperCase() === currentVerse.answer.toUpperCase()) {
         setCurrentRow(currentRow + 1);
         setGameCompleted(true);
-        // Save their attempt time
-        AsyncStorage.setItem('lastPlayed', new Date().getTime().toString());
         Alert.alert(
           "Congratulations!",
           "You guessed the Figure! Come back at midnight EST for a new verse.",
           [
-            { text: "OK" },
+            {
+              text: "OK",
+              onPress: () => {
+                AsyncStorage.setItem('lastPlayed', new Date().getTime().toString());
+              }
+            },
             {
               text: "Pay to play again (Ad)",
               onPress: async () => {
+                await AsyncStorage.removeItem('gameState');
+                await AsyncStorage.removeItem('lastPlayed');
                 await loadNewVerse();
                 setGameCompleted(false);
-                await AsyncStorage.removeItem('gameState');
               }
             }
           ]
@@ -145,11 +166,10 @@ export default function Wordle() {
         return;
       }
 
+      //if the guess is incorrect and the user has used all their guesses
       if (currentRow === MAX_GUESSES - 1) {
         setCurrentRow(currentRow + 1);
         setGameCompleted(true);
-        // Save their attempt time
-        AsyncStorage.setItem('lastPlayed', new Date().getTime().toString());
         Alert.alert(
           "Game Over",
           `The correct answer was: ${currentVerse.answer}\nCome back at midnight EST for a new verse.`,
@@ -158,9 +178,10 @@ export default function Wordle() {
             {
               text: "Pay to play again (Ad)",
               onPress: async () => {
+                await AsyncStorage.removeItem('gameState');
+                await AsyncStorage.removeItem('lastPlayed');
                 await loadNewVerse();
                 setGameCompleted(false);
-                await AsyncStorage.removeItem('gameState');
               }
             }
           ]
@@ -291,44 +312,27 @@ export default function Wordle() {
       const savedState = await AsyncStorage.getItem('gameState');
       if (savedState) {
         const gameState = JSON.parse(savedState);
-        setGuesses(gameState.guesses);
-        setCurrentRow(gameState.currentRow);
-        setCurrentVerse(gameState.currentVerse);
-        setGameCompleted(gameState.gameCompleted);
-        setIsLoading(false);
 
-        // Show alert if game was completed
-        if (gameState.gameCompleted) {
-          const isWin = gameState.guesses[gameState.currentRow - 1].toUpperCase() === gameState.currentVerse.answer.toUpperCase();
-
-          Alert.alert(
-            isWin ? "Congratulations!" : "Game Over",
-            isWin
-              ? "You guessed the Figure! Come back at midnight EST for a new verse."
-              : `The correct answer was: ${gameState.currentVerse.answer}\nCome back at midnight EST for a new verse.`,
-            [
-              { text: "OK" },
-              {
-                text: "Pay to play again (Ad)",
-                onPress: async () => {
-                  await loadNewVerse();
-                  setGameCompleted(false);
-                  await AsyncStorage.removeItem('gameState');
-                }
-              }
-            ]
-          );
+        // Only consider it a "loaded state" if the game wasn't completed
+        if (!gameState.gameCompleted) {
+          setGuesses(gameState.guesses);
+          setCurrentRow(gameState.currentRow);
+          setCurrentVerse(gameState.currentVerse);
+          setGameCompleted(false);
+          setIsLoading(false);
+          return true;  // Yes, we loaded an active game
         }
-        return true;
+        else {
+
+          return false;
+        }
       }
-      return false;
+      return false;  // No saved state
     } catch (error) {
       console.error('Error loading game state:', error);
       return false;
     }
   };
-
-
 
   if (isLoading || !currentVerse) {
     return (
@@ -339,13 +343,6 @@ export default function Wordle() {
     );
   }
 
-
-
-
-
-
-
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Bible Wordle</Text>
@@ -355,17 +352,7 @@ export default function Wordle() {
       <View style={styles.keyboard}>{renderKeyboard()}</View>
     </View>
   );
-
-
-
 }
-
-
-
-
-
-
-
 
 const styles = StyleSheet.create({
   container: {
