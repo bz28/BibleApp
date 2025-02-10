@@ -205,15 +205,48 @@ export default function Wordle() {
     const guessLetter = guess[index].toUpperCase();
     const answerLetter = answer[index].toUpperCase();
 
+    // If exact match, it's green
     if (guessLetter === answerLetter) {
-      return "#6aaa64"; // Green for correct letter and position
+      return "#6aaa64";
     }
 
-    if (answer.toUpperCase().includes(guessLetter)) {
-      return "#c9b458"; // Yellow for correct letter, wrong position
+    // Create frequency map of letters in answer ONCE
+    const letterFreq: { [key: string]: number } = {};
+    const usedYellow: { [key: number]: boolean } = {};  // Track which positions got yellow
+
+    // Build initial frequencies
+    for (let letter of answer.toUpperCase()) {
+      letterFreq[letter] = (letterFreq[letter] || 0) + 1;
     }
 
-    return "red"; // Red for incorrect letter
+    // First pass: decrease frequencies for exact matches
+    for (let i = 0; i < guess.length; i++) {
+      const currentGuessLetter = guess[i].toUpperCase();
+      const currentAnswerLetter = answer[i].toUpperCase();
+      if (currentGuessLetter === currentAnswerLetter) {
+        letterFreq[currentGuessLetter]--;
+      }
+    }
+
+    // Second pass: handle yellows in order
+    for (let i = 0; i < guess.length; i++) {
+      const currentGuessLetter = guess[i].toUpperCase();
+      const currentAnswerLetter = answer[i].toUpperCase();
+
+      if (currentGuessLetter !== currentAnswerLetter &&
+        letterFreq[currentGuessLetter] &&
+        letterFreq[currentGuessLetter] > 0) {
+        letterFreq[currentGuessLetter]--;
+        usedYellow[i] = true;
+      }
+    }
+
+    // Now check if this specific position got a yellow
+    if (usedYellow[index]) {
+      return "#c9b458";
+    }
+
+    return "red";
   };
 
   const renderGrid = () => {
