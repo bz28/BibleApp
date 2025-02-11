@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated } from "react-native";
 import { initDatabase, getRandomVerse } from './database/database';
 import { Verse } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +14,7 @@ export default function Wordle() {
   const [isLoading, setIsLoading] = useState(true);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [revealedBoxes, setRevealedBoxes] = useState<number>(-1);
+  const [flipAnimations, setFlipAnimations] = useState<Animated.Value[][]>([]);
 
   useEffect(() => {
     const setupGame = async () => {
@@ -77,6 +78,16 @@ export default function Wordle() {
   useEffect(() => {
     saveGameState();
   }, [guesses, currentRow, currentVerse, gameCompleted]);
+
+  useEffect(() => {
+    if (currentVerse) {
+      setFlipAnimations(
+        Array(MAX_GUESSES).fill(null).map(() =>
+          Array(currentVerse.answer.length).fill(null).map(() => new Animated.Value(0))
+        )
+      );
+    }
+  }, [currentVerse]);
 
   const checkIfCanPlay = async () => {
     const lastPlayed = await AsyncStorage.getItem('lastPlayed');
@@ -270,20 +281,38 @@ export default function Wordle() {
                 : "#fff";  // Future rows
 
             return (
-              <View
+              <Animated.View
                 key={colIndex}
                 style={[
                   styles.letterBox,
-                  { backgroundColor }
+                  {
+                    backgroundColor,
+                    transform: [{
+                      rotateX: flipAnimations[rowIndex]?.[colIndex]?.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: ['0deg', '90deg', '180deg'],
+                      }) || '0deg'
+                    }]
+                  }
                 ]}
               >
-                <Text style={[
-                  styles.letterText,
-                  backgroundColor !== "#fff" && { color: "#fff" }
-                ]}>
+                <Animated.Text
+                  style={[
+                    styles.letterText,
+                    backgroundColor !== "#fff" && { color: "#fff" },
+                    {
+                      transform: [{
+                        rotateX: flipAnimations[rowIndex]?.[colIndex]?.interpolate({
+                          inputRange: [0, 0.5, 1],
+                          outputRange: ['0deg', '-90deg', '-180deg'],  // Counter-rotate the text
+                        }) || '0deg'
+                      }]
+                    }
+                  ]}
+                >
                   {guess[colIndex] || ""}
-                </Text>
-              </View>
+                </Animated.Text>
+              </Animated.View>
             );
           })}
       </View>
@@ -379,6 +408,13 @@ export default function Wordle() {
     if (!currentVerse) return;
 
     for (let i = 0; i < currentVerse.answer.length; i++) {
+      // Use the existing animation value for this box
+      Animated.timing(flipAnimations[rowIndex][i], {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+
       setRevealedBoxes(i);
       await new Promise(resolve => setTimeout(resolve, 300));
     }
@@ -399,8 +435,8 @@ export default function Wordle() {
       <Text style={styles.title}>Bible Wordle</Text>
       <Text style={styles.title}>{currentVerse.hint}</Text>
       <Text style={styles.title}>{"Guess the Character"}</Text>
-      <View style={styles.grid}>{renderGrid()}</View>
-      <View style={styles.keyboard}>{renderKeyboard()}</View>
+      <View style={[styles.grid, { zIndex: 1 }]}>{renderGrid()}</View>
+      <View style={[styles.keyboard, { zIndex: 2 }]}>{renderKeyboard()}</View>
     </View>
   );
 }
