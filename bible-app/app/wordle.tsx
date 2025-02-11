@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated, ScrollView } from "react-native";
 import { initDatabase, getRandomVerse } from './database/database';
 import { Verse } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -524,6 +524,8 @@ export default function Wordle() {
     const baseSize = 24;
     const length = text.length;
 
+    if (length > 300) return 12;
+    if (length > 250) return 14;
     if (length > 200) return 16;
     if (length > 150) return 18;
     if (length > 100) return 20;
@@ -542,12 +544,17 @@ export default function Wordle() {
   return (
     <View style={styles.container}>
       <Text style={styles.mainTitle}>Bible Wordle</Text>
-      <Text style={[
-        styles.verseHint,
-        { fontSize: getVerseFontSize(currentVerse.hint) }
-      ]}>
-        {currentVerse.hint}
-      </Text>
+      <ScrollView
+        style={styles.verseScrollContainer}
+        contentContainerStyle={styles.verseScrollContent}
+      >
+        <Text style={[
+          styles.verseHint,
+          { fontSize: getVerseFontSize(currentVerse.hint) }
+        ]}>
+          {currentVerse.hint}
+        </Text>
+      </ScrollView>
       <Text style={styles.subtitle}>{"Guess the Figure"}</Text>
       <View style={[styles.grid, { zIndex: 1 }]}>{renderGrid()}</View>
       <View style={[styles.keyboard, { zIndex: 2 }]}>{renderKeyboard()}</View>
@@ -575,6 +582,14 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
+  verseScrollContainer: {
+    maxHeight: SCREEN_HEIGHT * 0.15,
+    width: '100%',
+  },
+  verseScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   verseHint: {
     fontWeight: "700",
     marginBottom: 16,
@@ -586,8 +601,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#8b4513',
     marginHorizontal: 20,
-    maxHeight: SCREEN_HEIGHT * 0.15,
-    overflow: 'scroll',  // Allow scrolling if text is too long
   },
   subtitle: {
     fontSize: 22,
