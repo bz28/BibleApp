@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const MAX_GUESSES = 5;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
+type LetterState = 'correct' | 'present' | 'absent' | 'unused';
+
 export default function Wordle() {
   const [guesses, setGuesses] = useState<string[]>(Array(MAX_GUESSES).fill(""));
   const [currentRow, setCurrentRow] = useState(0);
@@ -332,16 +334,42 @@ export default function Wordle() {
 
     const keyWidth = (SCREEN_WIDTH - 40) / 10;
     const keyHeight = keyWidth * 1.2;
+    const letterStates = getKeyboardLetterStates();
+
+    const getKeyBackground = (key: string) => {
+      switch (letterStates[key]) {
+        case 'correct':
+          return "#6aaa64";  // Green
+        case 'present':
+          return "#c9b458";  // Yellow
+        case 'absent':
+          return "red";      // Red
+        default:
+          return "#fff";     // White
+      }
+    };
 
     return keys.map((row, rowIndex) => (
       <View key={rowIndex} style={styles.keyboardRow}>
         {row.split("").map((key) => (
           <TouchableOpacity
             key={key}
-            style={[styles.key, { width: keyWidth, height: keyHeight }]}
+            style={[
+              styles.key,
+              {
+                width: keyWidth,
+                height: keyHeight,
+                backgroundColor: getKeyBackground(key)
+              }
+            ]}
             onPress={() => handleKeyPress(key)}
           >
-            <Text style={styles.keyText}>{key}</Text>
+            <Text style={[
+              styles.keyText,
+              letterStates[key] !== 'unused' && { color: '#fff' }
+            ]}>
+              {key}
+            </Text>
           </TouchableOpacity>
         ))}
         {rowIndex === 2 && (
@@ -423,6 +451,43 @@ export default function Wordle() {
       await new Promise(resolve => setTimeout(resolve, 300));
     }
     setRevealedBoxes(-1);
+  };
+
+  const getKeyboardLetterStates = (): Record<string, LetterState> => {
+    if (!currentVerse) return {};
+
+    const states: Record<string, LetterState> = {};
+
+    // Initialize all letters as unused
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(letter => {
+      states[letter] = 'unused';
+    });
+
+    // Go through all guessed rows
+    for (let rowIndex = 0; rowIndex < currentRow; rowIndex++) {
+      const guess = guesses[rowIndex];
+
+      // For each letter in the guess
+      for (let i = 0; i < guess.length; i++) {
+        const letter = guess[i].toUpperCase();
+        const currentState = states[letter];
+
+        // If exact match, always set to correct
+        if (letter === currentVerse.answer[i].toUpperCase()) {
+          states[letter] = 'correct';
+        }
+        // If letter exists but not exact match and not already correct
+        else if (currentVerse.answer.toUpperCase().includes(letter) && currentState !== 'correct') {
+          states[letter] = 'present';
+        }
+        // If letter doesn't exist and hasn't been marked as correct or present
+        else if (currentState === 'unused') {
+          states[letter] = 'absent';
+        }
+      }
+    }
+
+    return states;
   };
 
   if (isLoading || !currentVerse) {
