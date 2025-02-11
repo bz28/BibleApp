@@ -13,6 +13,7 @@ export default function Wordle() {
   const [currentVerse, setCurrentVerse] = useState<Verse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [gameCompleted, setGameCompleted] = useState(false);
+  const [revealedBoxes, setRevealedBoxes] = useState<number>(-1);
 
   useEffect(() => {
     const setupGame = async () => {
@@ -121,7 +122,7 @@ export default function Wordle() {
     }
   };
 
-  const handleKeyPress = (key: string) => {
+  const handleKeyPress = async (key: string) => {
     if (!currentVerse || gameCompleted) return;
 
     const currentGuess = guesses[currentRow];
@@ -140,6 +141,7 @@ export default function Wordle() {
 
       //check if the guess is correct
       if (currentGuess.toUpperCase() === currentVerse.answer.toUpperCase()) {
+        await revealRow(currentRow);
         setCurrentRow(currentRow + 1);
         setGameCompleted(true);
         Alert.alert(
@@ -168,6 +170,7 @@ export default function Wordle() {
 
       //if the guess is incorrect and the user has used all their guesses
       if (currentRow === MAX_GUESSES - 1) {
+        await revealRow(currentRow);
         setCurrentRow(currentRow + 1);
         setGameCompleted(true);
         Alert.alert(
@@ -189,6 +192,7 @@ export default function Wordle() {
         return;
       }
 
+      await revealRow(currentRow);
       setCurrentRow(currentRow + 1);
     } else if (currentGuess.length < currentVerse.answer.length) {
       setGuesses((prev) => {
@@ -257,9 +261,13 @@ export default function Wordle() {
         {Array(currentVerse.answer.length)
           .fill("")
           .map((_, colIndex) => {
-            const backgroundColor = rowIndex < currentRow
-              ? getLetterColor(guess, colIndex, currentVerse.answer)
-              : "#fff";
+            const backgroundColor = rowIndex === currentRow  // Changed from currentRow - 1
+              ? colIndex <= revealedBoxes  // Currently revealing row
+                ? getLetterColor(guess, colIndex, currentVerse.answer)
+                : "#fff"
+              : rowIndex < currentRow  // Previously completed rows
+                ? getLetterColor(guess, colIndex, currentVerse.answer)
+                : "#fff";  // Future rows
 
             return (
               <View
@@ -365,6 +373,16 @@ export default function Wordle() {
       console.error('Error loading game state:', error);
       return false;
     }
+  };
+
+  const revealRow = async (rowIndex: number) => {
+    if (!currentVerse) return;
+
+    for (let i = 0; i < currentVerse.answer.length; i++) {
+      setRevealedBoxes(i);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    setRevealedBoxes(-1);
   };
 
   if (isLoading || !currentVerse) {
