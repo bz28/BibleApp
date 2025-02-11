@@ -92,7 +92,7 @@ export const initialVerses = `
     ('How then can I do this great wickedness and sin against God?', 'Joseph', 'Old Testament'),
     ('Do not interpretations belong to God? Tell me your dreams', 'Joseph', 'Old Testament'),
     ('God will surely visit you, and you shall carry up my bones from here', 'Joseph', 'Old Testament'),
-    ('I am Joseph! Is my father still alive?', 'Joseph', 'Old Testament'),
+    ('I am ___! Is my father still alive?', 'Joseph', 'Old Testament'),
     ('Do not be afraid, for am I in God''s place?', 'Joseph', 'Old Testament'),
     ('The dream was given twice because the matter is fixed by God', 'Joseph', 'Old Testament'),
     ('Can we find anyone like this man, one in whom is the spirit of God?', 'Pharaoh', 'Old Testament'),
