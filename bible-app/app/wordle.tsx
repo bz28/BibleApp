@@ -6,6 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MAX_GUESSES = 5;
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const SCREEN_HEIGHT = Dimensions.get("window").height;
+const MIN_BOX_SIZE = 35;
+const MAX_BOX_SIZE = 45;
 
 type LetterState = 'correct' | 'present' | 'absent' | 'unused';
 
@@ -228,7 +231,7 @@ export default function Wordle() {
 
     // If exact match, it's green
     if (guessLetter === answerLetter) {
-      return "#6aaa64";
+      return "#5B8A51";  // Muted green, still clearly green
     }
 
     // Create frequency map of letters in answer ONCE
@@ -264,14 +267,22 @@ export default function Wordle() {
 
     // Now check if this specific position got a yellow
     if (usedYellow[index]) {
-      return "#c9b458";
+      return "#B59F3B";  // Muted gold/yellow
     }
 
-    return "red";
+    return "#A94442";  // Muted red
   };
 
   const renderGrid = () => {
     if (!currentVerse) return null;
+
+    // Calculate box size based on verse length and screen width
+    const maxBoxesPerRow = currentVerse.answer.length;
+    const availableWidth = SCREEN_WIDTH - 40; // Account for padding
+    const calculatedBoxSize = Math.min(
+      Math.max(availableWidth / maxBoxesPerRow - 6, MIN_BOX_SIZE), // -6 for margins
+      MAX_BOX_SIZE
+    );
 
     return guesses.map((guess, rowIndex) => (
       <View key={rowIndex} style={styles.row}>
@@ -292,6 +303,8 @@ export default function Wordle() {
                 style={[
                   styles.letterBox,
                   {
+                    width: calculatedBoxSize,
+                    height: calculatedBoxSize,
                     backgroundColor,
                     transform: [{
                       rotateX: flipAnimations[rowIndex]?.[colIndex]?.interpolate({
@@ -305,6 +318,9 @@ export default function Wordle() {
                 <Animated.Text
                   style={[
                     styles.letterText,
+                    {
+                      fontSize: calculatedBoxSize * 0.6, // Dynamic font size
+                    },
                     backgroundColor !== "#fff" && { color: "#fff" },
                     {
                       transform: [{
@@ -332,20 +348,20 @@ export default function Wordle() {
       "ZXCVBNM",
     ];
 
-    const keyWidth = (SCREEN_WIDTH - 40) / 10;
+    const keyWidth = (SCREEN_WIDTH - 80) / 10;
     const keyHeight = keyWidth * 1.2;
     const letterStates = getKeyboardLetterStates();
 
     const getKeyBackground = (key: string) => {
       switch (letterStates[key]) {
         case 'correct':
-          return "#6aaa64";  // Green
+          return "#5B8A51";  // Muted green
         case 'present':
-          return "#c9b458";  // Yellow
+          return "#B59F3B";  // Muted gold/yellow
         case 'absent':
-          return "red";      // Red
+          return "#A94442";  // Muted red
         default:
-          return "#fff";     // White
+          return "#e8d5c4";  // Light parchment
       }
     };
 
@@ -375,13 +391,26 @@ export default function Wordle() {
         {rowIndex === 2 && (
           <>
             <TouchableOpacity
-              style={[styles.keyWide, { width: keyWidth * 1.5, height: keyHeight }]}
+              style={[
+                styles.keyWide,
+                {
+                  width: keyWidth * 1.5,
+                  height: keyHeight,
+                  paddingHorizontal: 2,
+                }
+              ]}
               onPress={() => handleKeyPress("ENTER")}
             >
-              <Text style={styles.keyText}>ENTER</Text>
+              <Text style={[styles.keyText, { fontSize: 11 }]}>ENTER</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.keyWide, { width: keyWidth * 1.5, height: keyHeight }]}
+              style={[
+                styles.keyWide,
+                {
+                  width: keyWidth * 1.5,
+                  height: keyHeight
+                }
+              ]}
               onPress={() => handleKeyPress("BACKSPACE")}
             >
               <Text style={styles.keyText}>⌫</Text>
@@ -501,9 +530,9 @@ export default function Wordle() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Bible Wordle</Text>
-      <Text style={styles.title}>{currentVerse.hint}</Text>
-      <Text style={styles.title}>{"Guess the Character"}</Text>
+      <Text style={styles.mainTitle}>Bible Wordle</Text>
+      <Text style={styles.verseHint}>{currentVerse.hint}</Text>
+      <Text style={styles.subtitle}>{"Guess the Figure"}</Text>
       <View style={[styles.grid, { zIndex: 1 }]}>{renderGrid()}</View>
       <View style={[styles.keyboard, { zIndex: 2 }]}>{renderKeyboard()}</View>
     </View>
@@ -513,77 +542,117 @@ export default function Wordle() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#f3f3f3",
+    backgroundColor: "#f5e6d3",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 10,
+  mainTitle: {
+    fontSize: 36,
+    fontWeight: "900",
+    marginBottom: 16,
     textAlign: 'center',
+    color: '#2c1810',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  verseHint: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#2c1810',
+    padding: 10,
+    backgroundColor: '#e8d5c4',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#8b4513',
+    marginHorizontal: 20,
+  },
+  subtitle: {
+    fontSize: 22,
+    fontWeight: "500",
+    marginBottom: 40,
+    textAlign: 'center',
+    color: '#5c2c1d',
+    fontStyle: 'italic',
   },
   grid: {
-    flex: 1,
+    height: SCREEN_HEIGHT * 0.35,
     justifyContent: 'center',
-    marginVertical: 20,
+    alignItems: 'center',
+    marginBottom: 'auto',
   },
   row: {
     flexDirection: "row",
-    marginBottom: 5,
+    marginBottom: 8,
   },
   letterBox: {
-    width: 40,
-    height: 40,
-    margin: 2,
+    margin: 3,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#ddd",
+    borderColor: "#8b4513",
     backgroundColor: "#fff",
+    borderRadius: 4,
   },
   letterText: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "800",
+    color: '#1a1a1a',
   },
   keyboard: {
-    marginTop: 20,
+    width: '100%',
+    paddingHorizontal: 20,
+    marginTop: 'auto',
+    marginBottom: 10,
   },
   keyboardRow: {
     flexDirection: "row",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 8,
+    width: '100%',
   },
   key: {
-    margin: 2,
+    margin: 3,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    backgroundColor: "#fff",
+    borderColor: '#8b4513',
+    borderRadius: 4,
+    backgroundColor: "#e8d5c4",
+    minWidth: 30,
+    paddingHorizontal: 8,
   },
   keyWide: {
-    margin: 2,
+    margin: 3,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    backgroundColor: "#fff",
+    borderColor: '#8b4513',
+    borderRadius: 4,
+    backgroundColor: "#e8d5c4",
+    paddingHorizontal: 4,
   },
   keyText: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 14,
+    fontWeight: "700",
+    color: '#2c1810',
+    textAlign: 'center',
   },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: 12,
+    fontSize: 20,
+    fontWeight: "600",
+    color: '#1a1a1a',
+    fontStyle: 'italic',
   },
 });
 
