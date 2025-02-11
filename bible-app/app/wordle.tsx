@@ -519,6 +519,17 @@ export default function Wordle() {
     return states;
   };
 
+  // First, let's add a function to calculate the verse font size
+  const getVerseFontSize = (text: string) => {
+    const baseSize = 24;
+    const length = text.length;
+
+    if (length > 200) return 16;
+    if (length > 150) return 18;
+    if (length > 100) return 20;
+    return baseSize;
+  };
+
   if (isLoading || !currentVerse) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -531,7 +542,12 @@ export default function Wordle() {
   return (
     <View style={styles.container}>
       <Text style={styles.mainTitle}>Bible Wordle</Text>
-      <Text style={styles.verseHint}>{currentVerse.hint}</Text>
+      <Text style={[
+        styles.verseHint,
+        { fontSize: getVerseFontSize(currentVerse.hint) }
+      ]}>
+        {currentVerse.hint}
+      </Text>
       <Text style={styles.subtitle}>{"Guess the Figure"}</Text>
       <View style={[styles.grid, { zIndex: 1 }]}>{renderGrid()}</View>
       <View style={[styles.keyboard, { zIndex: 2 }]}>{renderKeyboard()}</View>
@@ -560,7 +576,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   verseHint: {
-    fontSize: 24,
     fontWeight: "700",
     marginBottom: 16,
     textAlign: 'center',
@@ -571,11 +586,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#8b4513',
     marginHorizontal: 20,
+    maxHeight: SCREEN_HEIGHT * 0.15,
+    overflow: 'scroll',  // Allow scrolling if text is too long
   },
   subtitle: {
     fontSize: 22,
     fontWeight: "500",
-    marginBottom: 40,
+    marginBottom: 20,
     textAlign: 'center',
     color: '#5c2c1d',
     fontStyle: 'italic',
@@ -584,7 +601,7 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT * 0.35,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 'auto',
+    marginBottom: SCREEN_HEIGHT * 0.15,  // Add space for keyboard
   },
   row: {
     flexDirection: "row",
@@ -607,8 +624,8 @@ const styles = StyleSheet.create({
   keyboard: {
     width: '100%',
     paddingHorizontal: 20,
-    marginTop: 'auto',
-    marginBottom: 10,
+    position: 'absolute',
+    bottom: 20,  // Increased from 10 to 20
   },
   keyboardRow: {
     flexDirection: "row",
