@@ -170,6 +170,8 @@ export default function Wordle() {
               onPress: async () => {
                 await AsyncStorage.removeItem('gameState');
                 await AsyncStorage.removeItem('lastPlayed');
+                setRevealedBoxes(-1);
+                setFlipAnimations([]);
                 await loadNewVerse();
                 setGameCompleted(false);
               }
@@ -194,6 +196,8 @@ export default function Wordle() {
               onPress: async () => {
                 await AsyncStorage.removeItem('gameState');
                 await AsyncStorage.removeItem('lastPlayed');
+                setRevealedBoxes(-1);
+                setFlipAnimations([]);
                 await loadNewVerse();
                 setGameCompleted(false);
               }
