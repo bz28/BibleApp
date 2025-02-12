@@ -117,6 +117,21 @@ export default function Kahoot() {
         }
     };
 
+    const getFontSize = (text: string) => {
+        const length = text.length;
+        if (length > 30) return 14;
+        if (length > 20) return 16;
+        return 18;
+    };
+
+    const getVerseFontSize = (text: string) => {
+        const length = text.length;
+        if (length > 200) return 16;
+        if (length > 150) return 18;
+        if (length > 100) return 20;
+        return 22;
+    };
+
     if (isLoading || !currentVerse) {
         return (
             <View style={styles.container}>
@@ -149,7 +164,15 @@ export default function Kahoot() {
             </View>
 
             <View style={styles.middleSection}>
-                <Text style={styles.verse}>{currentVerse.hint}</Text>
+                <Text
+                    style={[
+                        styles.verse,
+                        { fontSize: getVerseFontSize(currentVerse.hint) }
+                    ]}
+                    numberOfLines={4}
+                >
+                    {currentVerse.hint}
+                </Text>
             </View>
 
             <View style={styles.bottomSection}>
@@ -167,7 +190,16 @@ export default function Kahoot() {
                             {index === 1 && <View style={[styles.shape, styles.diamond]} />}
                             {index === 2 && <View style={[styles.shape, styles.circle]} />}
                             {index === 3 && <View style={[styles.shape, styles.square]} />}
-                            <Text style={styles.boxText} numberOfLines={2}>{option}</Text>
+                            <View style={styles.answerContainer}>
+                                <Text
+                                    style={styles.boxText}
+                                    numberOfLines={2}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.5}
+                                >
+                                    {option}
+                                </Text>
+                            </View>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -180,10 +212,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: "#f5e6d3",
+        paddingBottom: 20,
     },
     topSection: {
         padding: 20,
         alignItems: 'center',
+        height: '25%',
     },
     title: {
         fontSize: 36,
@@ -198,17 +232,18 @@ const styles = StyleSheet.create({
         textShadowRadius: 2,
     },
     middleSection: {
-        flex: 1,
+        height: '35%',
         justifyContent: 'center',
         paddingHorizontal: 20,
         backgroundColor: 'rgba(139, 69, 19, 0.08)',
         margin: 10,
         borderRadius: 20,
-        paddingVertical: 30,
+        paddingVertical: 20,
     },
     bottomSection: {
-        paddingBottom: 40,
+        height: '35%',
         paddingHorizontal: 10,
+        justifyContent: 'center',
     },
     scoreContainer: {
         backgroundColor: '#8b4513',
@@ -240,15 +275,18 @@ const styles = StyleSheet.create({
         textShadowRadius: 2,
     },
     verse: {
-        fontSize: 22,
         textAlign: 'center',
-        padding: 20,
+        padding: 25,
         backgroundColor: '#d4b08c',
         borderRadius: 15,
         borderWidth: 2,
         borderColor: '#8b4513',
         color: '#2c1810',
         fontWeight: '600',
+        fontSize: 20,
+        minHeight: 200,
+        maxHeight: 250,
+        justifyContent: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
@@ -265,26 +303,37 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         gap: 10,
         padding: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     box: {
-        width: '48%',
-        aspectRatio: 1,
-        justifyContent: 'center',
+        width: '47%',
+        aspectRatio: 2,
+        flexDirection: 'row',
         alignItems: 'center',
         borderRadius: 8,
         padding: 10,
     },
     shape: {
-        width: 24,
-        height: 24,
+        width: 22,
+        height: 22,
         backgroundColor: 'white',
-        marginBottom: 10,
+        marginRight: 10,
+    },
+    answerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 5,
     },
     boxText: {
         color: 'white',
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: 'bold',
         textAlign: 'center',
+        width: '100%',
+        flexWrap: 'wrap',
+        lineHeight: 20,
     },
     triangle: {
         width: 0,
