@@ -23,6 +23,9 @@ export default function Home() {
       <Link href="/kahoot" style={styles.button}>
         <Text style={styles.buttonText}>Play Kahoot</Text>
       </Link>
+      <Link href="/verseguess" style={styles.button}>
+        <Text style={styles.buttonText}>Verse Guess</Text>
+      </Link>
 
       {/* Only show in development */}
       {__DEV__ && (
