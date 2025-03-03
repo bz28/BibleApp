@@ -83,24 +83,34 @@ export default function VerseGuess() {
     const initGame = async () => {
         try {
             await initDatabase();
-            loadNewVerse();
+            await loadNewVerse();
         } catch (error) {
             console.error('Error initializing game:', error);
             Alert.alert('Error', 'Failed to load game data');
         }
     };
 
-    const loadNewVerse = () => {
-        // For this demo, we'll use sample data
-        // In a real app, you'd fetch from your database
-        const randomIndex = Math.floor(Math.random() * SAMPLE_VERSES.length);
-        const verse = SAMPLE_VERSES[randomIndex];
+    const loadNewVerse = async () => {
+        try {
+            // Get a random verse from the database
+            const verse = await getRandomVerse();
 
-        setCurrentVerse(verse.text);
-        setActualReference(verse.reference);
-        setSelectedBook('Genesis');
-        setSelectedChapter(1);
-        setSelectedVerse(1);
+            // Extract book, chapter, verse from the hint
+            // For now, we'll use sample data since we need to implement a proper reference system
+            const randomIndex = Math.floor(Math.random() * SAMPLE_VERSES.length);
+            const sampleVerse = SAMPLE_VERSES[randomIndex];
+
+            setCurrentVerse(verse.hint);
+            setActualReference(sampleVerse.reference); // This would need to be extracted from verse data
+
+            // Reset selections
+            setSelectedBook('Genesis');
+            setSelectedChapter(1);
+            setSelectedVerse(1);
+        } catch (error) {
+            console.error('Error loading verse:', error);
+            Alert.alert('Error', 'Failed to load verse');
+        }
     };
 
     const handleSubmitGuess = () => {
@@ -332,6 +342,9 @@ export default function VerseGuess() {
                                     <Text style={styles.modalItemText}>{item}</Text>
                                 </TouchableOpacity>
                             )}
+                            style={styles.modalList}
+                            showsVerticalScrollIndicator={true}
+                            initialNumToRender={10}
                         />
                         <TouchableOpacity
                             style={styles.modalCloseButton}
@@ -363,6 +376,9 @@ export default function VerseGuess() {
                                     <Text style={styles.modalItemText}>{item}</Text>
                                 </TouchableOpacity>
                             )}
+                            style={styles.modalList}
+                            showsVerticalScrollIndicator={true}
+                            initialNumToRender={10}
                         />
                         <TouchableOpacity
                             style={styles.modalCloseButton}
@@ -394,6 +410,9 @@ export default function VerseGuess() {
                                     <Text style={styles.modalItemText}>{item}</Text>
                                 </TouchableOpacity>
                             )}
+                            style={styles.modalList}
+                            showsVerticalScrollIndicator={true}
+                            initialNumToRender={10}
                         />
                         <TouchableOpacity
                             style={styles.modalCloseButton}
@@ -523,7 +542,7 @@ const styles = StyleSheet.create({
     },
     modalContent: {
         width: '80%',
-        maxHeight: '70%',
+        maxHeight: '80%',
         backgroundColor: '#f5e6d3',
         borderRadius: 10,
         padding: 20,
@@ -563,5 +582,10 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: "600",
+    },
+    modalList: {
+        maxHeight: 300,
+        width: '100%',
+        marginBottom: 10,
     },
 }); 
