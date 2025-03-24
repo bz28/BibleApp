@@ -20,30 +20,43 @@ const BIBLE_BOOKS = [
 
 // Define proper types for the Bible chapters object
 const BIBLE_CHAPTERS: Record<string, number> = {
-    'Genesis': 50,
-    'Exodus': 40,
-    'Leviticus': 27,
-    'Numbers': 36,
-    'Deuteronomy': 34,
-    'Joshua': 24,
-    'Judges': 21,
-    'Ruth': 4,
-    'Matthew': 28,
-    'Mark': 16,
-    'Luke': 24,
-    'John': 21,
-    'Acts': 28,
-    'Romans': 16,
-    // Add more as needed
+    'Genesis': 50, 'Exodus': 40, 'Leviticus': 27, 'Numbers': 36, 'Deuteronomy': 34,
+    'Joshua': 24, 'Judges': 21, 'Ruth': 4, '1 Samuel': 31, '2 Samuel': 24,
+    '1 Kings': 22, '2 Kings': 25, '1 Chronicles': 29, '2 Chronicles': 36,
+    'Ezra': 10, 'Nehemiah': 13, 'Esther': 10, 'Job': 42, 'Psalms': 150,
+    'Proverbs': 31, 'Ecclesiastes': 12, 'Song of Solomon': 8, 'Isaiah': 66,
+    'Jeremiah': 52, 'Lamentations': 5, 'Ezekiel': 48, 'Daniel': 12, 'Hosea': 14,
+    'Joel': 3, 'Amos': 9, 'Obadiah': 1, 'Jonah': 4, 'Micah': 7, 'Nahum': 3,
+    'Habakkuk': 3, 'Zephaniah': 3, 'Haggai': 2, 'Zechariah': 14, 'Malachi': 4,
+    'Matthew': 28, 'Mark': 16, 'Luke': 24, 'John': 21, 'Acts': 28, 'Romans': 16,
+    '1 Corinthians': 16, '2 Corinthians': 13, 'Galatians': 6, 'Ephesians': 6,
+    'Philippians': 4, 'Colossians': 4, '1 Thessalonians': 5, '2 Thessalonians': 3,
+    '1 Timothy': 6, '2 Timothy': 4, 'Titus': 3, 'Philemon': 1, 'Hebrews': 13,
+    'James': 5, '1 Peter': 5, '2 Peter': 3, '1 John': 5, '2 John': 1,
+    '3 John': 1, 'Jude': 1, 'Revelation': 22
 };
 
-// Define proper types for the verses per chapter object
-const VERSES_PER_CHAPTER: Record<string, number> = {
-    'Genesis:1': 31,
-    'Genesis:2': 25,
-    'Genesis:3': 24,
-    'John:3': 36,
-    // Add more as needed
+// Common verse counts for chapters (simplified for this example)
+// In a real app, you would have a complete mapping of verses per chapter for each book
+const COMMON_VERSE_COUNTS: Record<number, number> = {
+    1: 31, 2: 25, 3: 24, 4: 26, 5: 32, 6: 22, 7: 24, 8: 22, 9: 29, 10: 32,
+    11: 32, 12: 20, 13: 18, 14: 24, 15: 21, 16: 16, 17: 27, 18: 33, 19: 38, 20: 18,
+    21: 34, 22: 24, 23: 20, 24: 67, 25: 34, 26: 35, 27: 46, 28: 22, 29: 35, 30: 43,
+    31: 55, 32: 32, 33: 20, 34: 31, 35: 29, 36: 43, 37: 36, 38: 30, 39: 23, 40: 23,
+    41: 57, 42: 38, 43: 34, 44: 34, 45: 28, 46: 34, 47: 31, 48: 22, 49: 33, 50: 26
+};
+
+// Special cases for specific books and chapters
+const SPECIAL_VERSE_COUNTS: Record<string, Record<number, number>> = {
+    'Psalms': {
+        117: 2,  // Psalm 117 has only 2 verses
+        119: 176, // Psalm 119 has 176 verses
+        // Add more special cases as needed
+    },
+    'John': {
+        3: 36,  // John 3 has 36 verses
+        // Add more special cases as needed
+    }
 };
 
 // Sample verse references
@@ -76,6 +89,11 @@ export default function VerseGuess() {
     const [showChapterModal, setShowChapterModal] = useState(false);
     const [showVerseModal, setShowVerseModal] = useState(false);
 
+    // New state to track if book has been selected
+    const [bookSelected, setBookSelected] = useState(false);
+    // New state to track if chapter has been selected
+    const [chapterSelected, setChapterSelected] = useState(false);
+
     useEffect(() => {
         initGame();
     }, []);
@@ -107,6 +125,8 @@ export default function VerseGuess() {
             setSelectedBook('Genesis');
             setSelectedChapter(1);
             setSelectedVerse(1);
+            setBookSelected(false);
+            setChapterSelected(false);
         } catch (error) {
             console.error('Error loading verse:', error);
             Alert.alert('Error', 'Failed to load verse');
@@ -166,6 +186,8 @@ export default function VerseGuess() {
         setTotalScore(0);
         setResults([]);
         setGameCompleted(false);
+        setBookSelected(false);
+        setChapterSelected(false);
         loadNewVerse();
     };
 
@@ -213,38 +235,36 @@ export default function VerseGuess() {
     };
 
     const getAvailableVerses = () => {
-        const key = `${selectedBook}:${selectedChapter}`;
-        const maxVerses = VERSES_PER_CHAPTER[key] || 30; // Default to 30 if unknown
-        return Array.from({ length: maxVerses }, (_, i) => i + 1);
+        // Check if there's a special case for this book and chapter
+        if (SPECIAL_VERSE_COUNTS[selectedBook] &&
+            SPECIAL_VERSE_COUNTS[selectedBook][selectedChapter]) {
+            const verseCount = SPECIAL_VERSE_COUNTS[selectedBook][selectedChapter];
+            return Array.from({ length: verseCount }, (_, i) => i + 1);
+        }
+
+        // Otherwise use the common verse counts or default to 30
+        const verseCount = COMMON_VERSE_COUNTS[selectedChapter] || 30;
+        return Array.from({ length: verseCount }, (_, i) => i + 1);
     };
 
     const selectBook = (book: string) => {
         setSelectedBook(book);
         setShowBookModal(false);
+        setBookSelected(true);
 
-        // Reset chapter and verse if they're out of range for the new book
-        const maxChapters = BIBLE_CHAPTERS[book] || 150;
-        if (selectedChapter > maxChapters) {
-            setSelectedChapter(1);
-        }
-
-        const key = `${book}:${selectedChapter}`;
-        const maxVerses = VERSES_PER_CHAPTER[key] || 30;
-        if (selectedVerse > maxVerses) {
-            setSelectedVerse(1);
-        }
+        // Reset chapter and verse
+        setSelectedChapter(1);
+        setSelectedVerse(1);
+        setChapterSelected(false);
     };
 
     const selectChapter = (chapter: number) => {
         setSelectedChapter(chapter);
         setShowChapterModal(false);
+        setChapterSelected(true);
 
-        // Reset verse if it's out of range for the new chapter
-        const key = `${selectedBook}:${chapter}`;
-        const maxVerses = VERSES_PER_CHAPTER[key] || 30;
-        if (selectedVerse > maxVerses) {
-            setSelectedVerse(1);
-        }
+        // Reset verse
+        setSelectedVerse(1);
     };
 
     const selectVerse = (verse: number) => {
@@ -281,26 +301,47 @@ export default function VerseGuess() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.selectorButton}
-                        onPress={() => setShowChapterModal(true)}
+                        style={[
+                            styles.selectorButton,
+                            !bookSelected && styles.disabledButton
+                        ]}
+                        onPress={() => bookSelected && setShowChapterModal(true)}
+                        disabled={!bookSelected}
                     >
                         <Text style={styles.selectorLabel}>Chapter</Text>
-                        <Text style={styles.selectorValue}>{selectedChapter}</Text>
+                        <Text style={[
+                            styles.selectorValue,
+                            !bookSelected && styles.disabledText
+                        ]}>
+                            {selectedChapter}
+                        </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.selectorButton}
-                        onPress={() => setShowVerseModal(true)}
+                        style={[
+                            styles.selectorButton,
+                            (!bookSelected || !chapterSelected) && styles.disabledButton
+                        ]}
+                        onPress={() => bookSelected && chapterSelected && setShowVerseModal(true)}
+                        disabled={!bookSelected || !chapterSelected}
                     >
                         <Text style={styles.selectorLabel}>Verse</Text>
-                        <Text style={styles.selectorValue}>{selectedVerse}</Text>
+                        <Text style={[
+                            styles.selectorValue,
+                            (!bookSelected || !chapterSelected) && styles.disabledText
+                        ]}>
+                            {selectedVerse}
+                        </Text>
                     </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity
-                    style={styles.submitButton}
+                    style={[
+                        styles.submitButton,
+                        (!bookSelected || !chapterSelected) && styles.disabledSubmitButton
+                    ]}
                     onPress={handleSubmitGuess}
-                    disabled={gameCompleted}
+                    disabled={!bookSelected || !chapterSelected || gameCompleted}
                 >
                     <Text style={styles.submitButtonText}>Submit Guess</Text>
                 </TouchableOpacity>
@@ -489,6 +530,14 @@ const styles = StyleSheet.create({
         borderColor: '#8b4513',
         alignItems: 'center',
     },
+    disabledButton: {
+        backgroundColor: '#e8d5c4',
+        borderColor: '#d4b08c',
+        opacity: 0.7,
+    },
+    disabledText: {
+        color: '#8b8b8b',
+    },
     selectorLabel: {
         fontSize: 14,
         color: '#2c1810',
@@ -504,6 +553,10 @@ const styles = StyleSheet.create({
         padding: 15,
         borderRadius: 8,
         alignItems: 'center',
+    },
+    disabledSubmitButton: {
+        backgroundColor: '#a98267',
+        opacity: 0.7,
     },
     submitButtonText: {
         color: '#fff',

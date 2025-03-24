@@ -18,10 +18,10 @@ export default function Home() {
     <View style={styles.container}>
       <Text style={styles.title}>Bible Word Games</Text>
       <Link href="/wordle" style={styles.button}>
-        <Text style={styles.buttonText}>Play Wordle</Text>
+        <Text style={styles.buttonText}>Wordle</Text>
       </Link>
       <Link href="/kahoot" style={styles.button}>
-        <Text style={styles.buttonText}>Play Kahoot</Text>
+        <Text style={styles.buttonText}>Kahoot</Text>
       </Link>
       <Link href="/verseguess" style={styles.button}>
         <Text style={styles.buttonText}>Verse Guess</Text>
@@ -46,34 +46,40 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    backgroundColor: "#f5e6d3", // Matching parchment background
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontSize: 36,
+    fontWeight: "900",
+    marginBottom: 30,
+    color: '#2c1810',
+    textAlign: 'center',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-  link: {
-    fontSize: 18,
-    color: "blue",
-    marginVertical: 10,
-  },
-
-
   button: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#8b4513', // Brown color matching theme
     padding: 15,
     borderRadius: 8,
     marginVertical: 10,
+    width: '80%',
+    maxWidth: 300,
+    borderWidth: 1,
+    borderColor: '#2c1810',
   },
   buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
     textAlign: 'center',
   },
   debugButton: {
-    marginTop: 20,
-    color: 'red',
+    marginTop: 40,
+    color: '#a94442', // Matching the red from wordle
     textDecorationLine: 'underline',
+    fontSize: 16,
   },
 });
