@@ -26,6 +26,9 @@ export default function Home() {
       <Link href="/verseguess" style={styles.button}>
         <Text style={styles.buttonText}>Verse Guess</Text>
       </Link>
+      <Link href="/hotcoldverseguess" style={styles.button}>
+        <Text style={styles.buttonText}>Hot & Cold</Text>
+      </Link>
 
       {/* Only show in development */}
       {__DEV__ && (
