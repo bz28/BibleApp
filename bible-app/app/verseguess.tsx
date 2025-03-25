@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, FlatList } from 'react-native';
-import { initDatabase, getRandomVerse } from './database/database';
-import { Verse } from './database/schema';
+import { initDatabase, getRandomSpeaker } from './database/database';
+import { Speaker } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Bible books in order
@@ -77,7 +77,7 @@ interface GuessResult {
 export default function VerseGuess() {
     const [currentRound, setCurrentRound] = useState(0);
     const [gameCompleted, setGameCompleted] = useState(false);
-    const [currentVerse, setCurrentVerse] = useState('');
+    const [currentSpeaker, setCurrentSpeaker] = useState('');
     const [actualReference, setActualReference] = useState({ book: '', chapter: 0, verse: 0 });
     const [selectedBook, setSelectedBook] = useState('Genesis');
     const [selectedChapter, setSelectedChapter] = useState(1);
@@ -111,14 +111,14 @@ export default function VerseGuess() {
     const loadNewVerse = async () => {
         try {
             // Get a random verse from the database
-            const verse = await getRandomVerse();
+            const speaker = await getRandomSpeaker();
 
             // Extract book, chapter, verse from the hint
             // For now, we'll use sample data since we need to implement a proper reference system
             const randomIndex = Math.floor(Math.random() * SAMPLE_VERSES.length);
             const sampleVerse = SAMPLE_VERSES[randomIndex];
 
-            setCurrentVerse(verse.hint);
+            setCurrentSpeaker(speaker.hint);
             setActualReference(sampleVerse.reference); // This would need to be extracted from verse data
 
             // Reset selections
@@ -144,7 +144,7 @@ export default function VerseGuess() {
 
         // Save result
         const result: GuessResult = {
-            verseText: currentVerse,
+            verseText: currentSpeaker,
             actualReference,
             guessedReference: { book: selectedBook, chapter: selectedChapter, verse: selectedVerse },
             score: roundScore
@@ -285,7 +285,7 @@ export default function VerseGuess() {
             <Text style={styles.scoreText}>Score: {totalScore}</Text>
 
             <ScrollView style={styles.verseContainer}>
-                <Text style={styles.verseText}>{currentVerse}</Text>
+                <Text style={styles.verseText}>{currentSpeaker}</Text>
             </ScrollView>
 
             <View style={styles.guessContainer}>

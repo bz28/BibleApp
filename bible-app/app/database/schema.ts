@@ -1,4 +1,4 @@
-export interface Verse {
+export interface Speaker {
     id: number;
     hint: string;
     answer: string;
@@ -14,14 +14,14 @@ export interface VerseReference {
     verse_id: number;
 }
 
-export const createVersesTable = `
-    CREATE TABLE IF NOT EXISTS verses (
+export const createSpeakerTable = `
+    CREATE TABLE IF NOT EXISTS speakers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         hint TEXT NOT NULL,
         answer TEXT NOT NULL,
         category TEXT
     );
-    DELETE FROM verses;
+    DELETE FROM speakers;
 `;
 
 export const createReferencesTable = `
@@ -32,7 +32,7 @@ export const createReferencesTable = `
         verse INTEGER NOT NULL,
         text TEXT NOT NULL,
         verse_id INTEGER,
-        FOREIGN KEY (verse_id) REFERENCES verses (id)
+        FOREIGN KEY (verse_id) REFERENCES speakers (id)
     );
     DELETE FROM verse_references;
 `;
@@ -46,8 +46,8 @@ export const insertReferences = `
     (5, 'Genesis', 1, 5, 'God called the light "day," and the darkness he called "night." And there was evening, and there was morning—the first day.', NULL)
 `;
 
-export const initialVerses = `
-    INSERT INTO verses (id, hint, answer, category) VALUES
+export const initialSpeakers = `
+    INSERT INTO speakers (id, hint, answer, category) VALUES
     (1, 'I am the way, and the truth, and the life. No one comes to the Father except through me.', 'Jesus', 'New Testament'),
     (2, 'For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.', 'John', 'New Testament'),
     (3, 'The Lord is my shepherd, I lack nothing.', 'David', 'Old Testament'),

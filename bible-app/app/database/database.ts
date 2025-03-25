@@ -1,5 +1,5 @@
 import { openDatabaseSync } from 'expo-sqlite';
-import { createVersesTable, createReferencesTable, initialVerses, insertReferences, Verse, VerseReference } from './schema';
+import { createSpeakerTable, createReferencesTable, initialSpeakers, insertReferences, Speaker, VerseReference } from './schema';
 
 const db = openDatabaseSync('wordle.db');
 
@@ -11,14 +11,14 @@ export const initDatabase = (): Promise<boolean> => {
         db.execAsync('PRAGMA journal_mode = WAL')
             .then(() => {
                 // Create tables and insert data
-                return db.execAsync(createVersesTable);
+                return db.execAsync(createSpeakerTable);
             })
             .then(() => {
                 return db.execAsync(createReferencesTable);
             })
             .then(() => {
                 console.log('Tables created successfully');
-                return db.execAsync(initialVerses);
+                return db.execAsync(initialSpeakers);
             })
             .then(() => {
                 return db.execAsync(insertReferences);
@@ -34,18 +34,18 @@ export const initDatabase = (): Promise<boolean> => {
     });
 };
 
-export const getRandomVerse = (): Promise<Verse> => {
+export const getRandomSpeaker = (): Promise<Speaker> => {
     return new Promise((resolve, reject) => {
-        db.getFirstAsync<Verse>('SELECT * FROM verses ORDER BY RANDOM() LIMIT 1')
-            .then(verse => {
-                if (verse) {
-                    resolve(verse);
+        db.getFirstAsync<Speaker>('SELECT * FROM speakers ORDER BY RANDOM() LIMIT 1')
+            .then(speaker => {
+                if (speaker) {
+                    resolve(speaker);
                 } else {
-                    reject(new Error('No verse found'));
+                    reject(new Error('No speaker found'));
                 }
             })
             .catch(error => {
-                console.error('Error getting random verse:', error);
+                console.error('Error getting random speaker:', error);
                 reject(error);
             });
     });

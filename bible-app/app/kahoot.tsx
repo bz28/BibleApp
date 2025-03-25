@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Animated } from "react-native";
-import { initDatabase, getRandomVerse } from './database/database';
-import { Verse } from './database/schema';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated } from "react-native";
+import { initDatabase, getRandomSpeaker } from './database/database';
+import { Speaker } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -14,7 +14,7 @@ const KAHOOT_COLORS = {
 };
 
 export default function Kahoot() {
-    const [currentVerse, setCurrentVerse] = useState<Verse | null>(null);
+    const [currentSpeaker, setCurrentSpeaker] = useState<Speaker | null>(null);
     const [options, setOptions] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [score, setScore] = useState(0);
@@ -22,8 +22,21 @@ export default function Kahoot() {
     const [timerActive, setTimerActive] = useState<boolean>(false);
     const [timerWidth] = useState(new Animated.Value(1));
 
+    // New states for feedback
+    const [showFeedback, setShowFeedback] = useState(false);
+    const [isCorrect, setIsCorrect] = useState(false);
+    const [correctAnswer, setCorrectAnswer] = useState('');
+    const [feedbackTimeout, setFeedbackTimeout] = useState<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         setupGame();
+
+        // Clear any existing timeout when component unmounts
+        return () => {
+            if (feedbackTimeout) {
+                clearTimeout(feedbackTimeout);
+            }
+        };
     }, []);
 
     const setupGame = async () => {
@@ -32,7 +45,6 @@ export default function Kahoot() {
             await loadNewQuestion();
         } catch (error) {
             console.error('Error setting up game:', error);
-            Alert.alert('Error', 'Failed to load game data');
         }
     };
 
@@ -40,9 +52,11 @@ export default function Kahoot() {
         setIsLoading(true);
         setTimerActive(false);
         timerWidth.setValue(1);
+        setShowFeedback(false);
 
-        const verse = await getRandomVerse();
-        setCurrentVerse(verse);
+        const speaker = await getRandomSpeaker();
+        setCurrentSpeaker(speaker);
+        setCorrectAnswer(speaker.answer);
 
         // Generate 3 random wrong answers
         const allPossibleAnswers = ['Jesus', 'Peter', 'Paul', 'David', 'Moses', 'Abraham',
@@ -50,11 +64,11 @@ export default function Kahoot() {
             'Samuel', 'Elijah', 'Joshua', 'Ruth', 'Esther', 'Mary'];
 
         let wrongAnswers = allPossibleAnswers
-            .filter(answer => answer !== verse.answer)
+            .filter(answer => answer !== speaker.answer)
             .sort(() => Math.random() - 0.5)
             .slice(0, 3);
 
-        const allOptions = [...wrongAnswers, verse.answer]
+        const allOptions = [...wrongAnswers, speaker.answer]
             .sort(() => Math.random() - 0.5);
 
         setOptions(allOptions);
@@ -88,33 +102,38 @@ export default function Kahoot() {
     }, [timerActive, timeLeft]);
 
     const handleTimeout = () => {
-        if (!currentVerse || !timerActive) return;
+        if (!currentSpeaker || !timerActive) return;
 
         setTimerActive(false);
-        Alert.alert('Time\'s Up!', `The correct answer was ${currentVerse.answer}`, [
-            {
-                text: 'Next Question',
-                onPress: () => {
-                    loadNewQuestion();
-                }
-            }
-        ]);
+        setIsCorrect(false);
+        setShowFeedback(true);
+
+        // Set a timeout to move to the next question after showing feedback
+        const timeout = setTimeout(() => {
+            loadNewQuestion();
+        }, 2000);
+
+        setFeedbackTimeout(timeout);
     };
 
     const handleAnswer = (selectedAnswer: string) => {
         setTimerActive(false);
-        if (!currentVerse) return;
+        if (!currentSpeaker) return;
 
-        if (selectedAnswer === currentVerse.answer) {
+        const correct = selectedAnswer === currentSpeaker.answer;
+        setIsCorrect(correct);
+        setShowFeedback(true);
+
+        if (correct) {
             setScore(prev => prev + 1);
-            Alert.alert('Correct!', 'Well done!', [
-                { text: 'Next Question', onPress: loadNewQuestion }
-            ]);
-        } else {
-            Alert.alert('Incorrect', `The correct answer was ${currentVerse.answer}`, [
-                { text: 'Next Question', onPress: loadNewQuestion }
-            ]);
         }
+
+        // Set a timeout to move to the next question after showing feedback
+        const timeout = setTimeout(() => {
+            loadNewQuestion();
+        }, 2000);
+
+        setFeedbackTimeout(timeout);
     };
 
     const getFontSize = (text: string) => {
@@ -132,7 +151,7 @@ export default function Kahoot() {
         return 22;
     };
 
-    if (isLoading || !currentVerse) {
+    if (isLoading || !currentSpeaker) {
         return (
             <View style={styles.container}>
                 <Text>Loading...</Text>
@@ -167,13 +186,21 @@ export default function Kahoot() {
                 <Text
                     style={[
                         styles.verse,
-                        { fontSize: getVerseFontSize(currentVerse.hint) }
+                        { fontSize: getVerseFontSize(currentSpeaker.hint) }
                     ]}
                     numberOfLines={4}
                 >
-                    {currentVerse.hint}
+                    {currentSpeaker.hint}
                 </Text>
             </View>
+
+            {showFeedback && (
+                <View style={[styles.feedbackContainer, isCorrect ? styles.correctFeedback : styles.incorrectFeedback]}>
+                    <Text style={styles.feedbackText}>
+                        {isCorrect ? 'Correct!' : `Incorrect! The answer was ${correctAnswer}`}
+                    </Text>
+                </View>
+            )}
 
             <View style={styles.bottomSection}>
                 <View style={styles.grid}>
@@ -182,9 +209,12 @@ export default function Kahoot() {
                             key={index}
                             style={[
                                 styles.box,
-                                { backgroundColor: Object.values(KAHOOT_COLORS)[index] }
+                                { backgroundColor: Object.values(KAHOOT_COLORS)[index] },
+                                showFeedback && option === correctAnswer && styles.correctAnswerBox,
+                                showFeedback && option !== correctAnswer && styles.disabledBox
                             ]}
-                            onPress={() => handleAnswer(option)}
+                            onPress={() => !showFeedback && handleAnswer(option)}
+                            disabled={showFeedback}
                         >
                             {index === 0 && <View style={[styles.shape, styles.triangle]} />}
                             {index === 1 && <View style={[styles.shape, styles.diamond]} />}
@@ -221,7 +251,7 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 36,
-        fontWeight: '900',
+        fontWeight: "900",
         color: '#2c1810',
         marginBottom: 16,
         textAlign: 'center',
@@ -260,7 +290,7 @@ const styles = StyleSheet.create({
     scoreLabel: {
         color: '#e8d5c4',
         fontSize: 14,
-        fontWeight: '800',
+        fontWeight: "800",
         textAlign: 'center',
         letterSpacing: 2,
         textTransform: 'uppercase',
@@ -268,7 +298,7 @@ const styles = StyleSheet.create({
     scoreValue: {
         color: '#fff',
         fontSize: 28,
-        fontWeight: '900',
+        fontWeight: "900",
         textAlign: 'center',
         textShadowColor: 'rgba(0, 0, 0, 0.3)',
         textShadowOffset: { width: 1, height: 1 },
@@ -282,7 +312,7 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: '#8b4513',
         color: '#2c1810',
-        fontWeight: '600',
+        fontWeight: "600",
         fontSize: 20,
         minHeight: 200,
         maxHeight: 250,
@@ -329,7 +359,7 @@ const styles = StyleSheet.create({
     boxText: {
         color: 'white',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: "bold",
         textAlign: 'center',
         width: '100%',
         flexWrap: 'wrap',
@@ -369,4 +399,48 @@ const styles = StyleSheet.create({
         backgroundColor: '#8b4513',
         borderRadius: 5,
     },
+    // New styles for feedback
+    feedbackContainer: {
+        position: 'absolute',
+        top: '50%',
+        left: '10%',
+        right: '10%',
+        padding: 15,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 8,
+    },
+    correctFeedback: {
+        backgroundColor: 'rgba(38, 137, 12, 0.9)', // Green with opacity
+    },
+    incorrectFeedback: {
+        backgroundColor: 'rgba(226, 27, 60, 0.9)', // Red with opacity
+    },
+    feedbackText: {
+        color: 'white',
+        fontSize: 22,
+        fontWeight: "bold",
+        textAlign: 'center',
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+    correctAnswerBox: {
+        borderWidth: 3,
+        borderColor: '#fff',
+        shadowColor: '#fff',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    disabledBox: {
+        opacity: 0.6,
+    }
 });
