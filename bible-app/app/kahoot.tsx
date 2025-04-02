@@ -6,11 +6,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-const KAHOOT_COLORS = {
-    red: '#e21b3c',
-    blue: '#1368ce',
-    yellow: '#d89e00',
-    green: '#26890c',
+// New color scheme - more biblical/parchment themed
+const ANSWER_COLORS = {
+    option1: '#8b4513', // Dark brown
+    option2: '#a67c52', // Medium brown
+    option3: '#d4b08c', // Light brown
+    option4: '#b38b6d', // Tan
 };
 
 export default function Kahoot() {
@@ -162,7 +163,7 @@ export default function Kahoot() {
     return (
         <View style={styles.container}>
             <View style={styles.topSection}>
-                <Text style={styles.title}>Bible Kahoot</Text>
+                <Text style={styles.title}>Scripture Quiz</Text>
                 <View style={styles.timerContainer}>
                     <Animated.View
                         style={[
@@ -209,17 +210,13 @@ export default function Kahoot() {
                             key={index}
                             style={[
                                 styles.box,
-                                { backgroundColor: Object.values(KAHOOT_COLORS)[index] },
+                                { backgroundColor: Object.values(ANSWER_COLORS)[index] },
                                 showFeedback && option === correctAnswer && styles.correctAnswerBox,
                                 showFeedback && option !== correctAnswer && styles.disabledBox
                             ]}
                             onPress={() => !showFeedback && handleAnswer(option)}
                             disabled={showFeedback}
                         >
-                            {index === 0 && <View style={[styles.shape, styles.triangle]} />}
-                            {index === 1 && <View style={[styles.shape, styles.diamond]} />}
-                            {index === 2 && <View style={[styles.shape, styles.circle]} />}
-                            {index === 3 && <View style={[styles.shape, styles.square]} />}
                             <View style={styles.answerContainer}>
                                 <Text
                                     style={styles.boxText}
@@ -241,7 +238,7 @@ export default function Kahoot() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#f5e6d3",
+        backgroundColor: "#f5e6d3", // Parchment background
         paddingBottom: 20,
     },
     topSection: {
@@ -343,12 +340,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: 8,
         padding: 10,
-    },
-    shape: {
-        width: 22,
-        height: 22,
-        backgroundColor: 'white',
-        marginRight: 10,
+        borderWidth: 1,
+        borderColor: '#2c1810',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 3,
     },
     answerContainer: {
         flex: 1,
@@ -364,27 +362,9 @@ const styles = StyleSheet.create({
         width: '100%',
         flexWrap: 'wrap',
         lineHeight: 20,
-    },
-    triangle: {
-        width: 0,
-        height: 0,
-        backgroundColor: 'transparent',
-        borderStyle: 'solid',
-        borderLeftWidth: 12,
-        borderRightWidth: 12,
-        borderBottomWidth: 24,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderBottomColor: 'white',
-    },
-    diamond: {
-        transform: [{ rotate: '45deg' }],
-    },
-    circle: {
-        borderRadius: 12,
-    },
-    square: {
-        // default square shape
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
     timerContainer: {
         width: '100%',
@@ -393,13 +373,15 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginVertical: 10,
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#8b4513',
     },
     timerBar: {
         height: '100%',
         backgroundColor: '#8b4513',
         borderRadius: 5,
     },
-    // New styles for feedback
+    // Feedback styles
     feedbackContainer: {
         position: 'absolute',
         top: '50%',
@@ -415,12 +397,15 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 5,
         elevation: 8,
+        borderWidth: 2,
     },
     correctFeedback: {
-        backgroundColor: 'rgba(38, 137, 12, 0.9)', // Green with opacity
+        backgroundColor: 'rgba(139, 69, 19, 0.9)', // Brown with opacity
+        borderColor: '#d4b08c',
     },
     incorrectFeedback: {
-        backgroundColor: 'rgba(226, 27, 60, 0.9)', // Red with opacity
+        backgroundColor: 'rgba(169, 68, 66, 0.9)', // Reddish brown with opacity
+        borderColor: '#e8d5c4',
     },
     feedbackText: {
         color: 'white',

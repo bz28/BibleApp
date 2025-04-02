@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated, ScrollView } from "react-native";
-import { initDatabase, getRandomVerse } from './database/database';
-import { Verse } from './database/schema';
+import { initDatabase, getRandomSpeaker } from './database/database';
+import { Speaker } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MAX_GUESSES = 5;
@@ -15,7 +15,7 @@ type LetterState = 'correct' | 'present' | 'absent' | 'unused';
 export default function Wordle() {
   const [guesses, setGuesses] = useState<string[]>(Array(MAX_GUESSES).fill(""));
   const [currentRow, setCurrentRow] = useState(0);
-  const [currentVerse, setCurrentVerse] = useState<Verse | null>(null);
+  const [currentVerse, setCurrentVerse] = useState<Speaker | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [revealedBoxes, setRevealedBoxes] = useState<number>(-1);
@@ -126,7 +126,7 @@ export default function Wordle() {
   const loadNewVerse = async () => {
     try {
       setIsLoading(true);
-      const verse = await getRandomVerse();
+      const verse = await getRandomSpeaker();
       setCurrentVerse(verse);
       setGuesses(Array(MAX_GUESSES).fill(""));
       setCurrentRow(0);

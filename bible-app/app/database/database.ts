@@ -84,5 +84,4 @@ export const getVerseReferenceById = (id: number): Promise<VerseReference> => {
                 reject(error);
             });
     });
-};
-
+}
