@@ -285,7 +285,10 @@ export default function Kahoot() {
                         >
                             <View style={styles.answerContainer}>
                                 <Text
-                                    style={styles.boxText}
+                                    style={[
+                                        styles.boxText,
+                                        showFeedback && option === correctAnswer && styles.correctAnswerText
+                                    ]}
                                     numberOfLines={2}
                                 >
                                     {option}
@@ -392,7 +395,7 @@ const styles = StyleSheet.create({
     },
     grid: {
         flexDirection: 'column',
-        gap: 8,
+        gap: 12,
         padding: 8,
         width: '100%',
     },
@@ -480,13 +483,24 @@ const styles = StyleSheet.create({
         textShadowRadius: 2,
     },
     correctAnswerBox: {
-        borderWidth: 3,
+        borderWidth: 4,
         borderColor: '#fff',
         shadowColor: '#fff',
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 10,
-        elevation: 10,
+        shadowOpacity: 0.9,
+        shadowRadius: 12,
+        elevation: 15,
+        transform: [{ scale: 1.05 }],
+        backgroundColor: '#5e3023',
+    },
+    correctAnswerText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: "900",
+        textAlign: 'center',
+        textShadowColor: 'rgba(255, 255, 255, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
     },
     disabledBox: {
         opacity: 0.6,
