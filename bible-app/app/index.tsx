@@ -21,7 +21,7 @@ export default function Home() {
         <Text style={styles.buttonText}>Wordle</Text>
       </Link>
       <Link href="/kahoot" style={styles.button}>
-        <Text style={styles.buttonText}>Kahoot</Text>
+        <Text style={styles.buttonText}>Scripture Blitz</Text>
       </Link>
       <Link href="/verseguess" style={styles.button}>
         <Text style={styles.buttonText}>Verse Guess</Text>

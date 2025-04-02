@@ -65,6 +65,7 @@ export default function Kahoot() {
     };
 
     const loadNewQuestion = async () => {
+        console.log('[DEBUG] Loading new question...');
         setIsLoading(true);
         setTimerActive(false);
         setShowFeedback(false);
@@ -76,6 +77,9 @@ export default function Kahoot() {
         setShowTimer(true);
 
         const speaker = await getRandomSpeaker();
+        console.log(`[DEBUG] New verse loaded: "${speaker.hint.substring(0, 30)}..."`);
+        console.log(`[DEBUG] Verse full length: ${speaker.hint.length} characters`);
+
         setCurrentSpeaker(speaker);
         setCorrectAnswer(speaker.answer);
 
@@ -199,10 +203,30 @@ export default function Kahoot() {
 
     const getVerseFontSize = (text: string) => {
         const length = text.length;
-        if (length > 200) return 16;
-        if (length > 150) return 18;
-        if (length > 100) return 20;
-        return 22;
+        console.log(`[DEBUG] Verse length: ${length} characters`);
+
+        let fontSize = 22;
+        if (length > 200) fontSize = 16;
+        else if (length > 150) fontSize = 18;
+        else if (length > 100) fontSize = 20;
+
+        console.log(`[DEBUG] Selected font size: ${fontSize}px`);
+        return fontSize;
+    };
+
+    const getVerseBoxHeight = (text: string) => {
+        const length = text.length;
+        console.log(`[DEBUG] Calculating box height for verse with ${length} characters`);
+
+        // Increase all height values to ensure verses aren't cut off
+        let height = 100; // Minimum height for very short verses
+        if (length > 300) height = 250;
+        else if (length > 200) height = 200;
+        else if (length > 100) height = 150;
+        else if (length > 65) height = 120;
+
+        console.log(`[DEBUG] Selected box height: ${height}px`);
+        return height;
     };
 
     if (isLoading || !currentSpeaker) {
@@ -247,9 +271,12 @@ export default function Kahoot() {
                 <Text
                     style={[
                         styles.verse,
-                        { fontSize: getVerseFontSize(currentSpeaker.hint) }
+                        {
+                            fontSize: getVerseFontSize(currentSpeaker.hint),
+                            height: getVerseBoxHeight(currentSpeaker.hint)
+                        }
                     ]}
-                    numberOfLines={4}
+                    numberOfLines={6}
                 >
                     {currentSpeaker.hint}
                 </Text>
@@ -379,8 +406,6 @@ const styles = StyleSheet.create({
         color: '#2c1810',
         fontWeight: "600",
         fontSize: 18,
-        minHeight: 150,
-        maxHeight: 200,
         justifyContent: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -392,6 +417,8 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.15)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
+        lineHeight: 24,
+        flexWrap: 'wrap',
     },
     grid: {
         flexDirection: 'column',
