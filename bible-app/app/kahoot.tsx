@@ -6,12 +6,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-// New color scheme - more biblical/parchment themed
+// Update the color scheme with a more appealing first color
 const ANSWER_COLORS = {
-    option1: '#8b4513', // Dark brown
-    option2: '#a67c52', // Medium brown
-    option3: '#d4b08c', // Light brown
-    option4: '#b38b6d', // Tan
+    option1: '#5e3023', // Deep burgundy/mahogany (now first)
+    option2: '#8b4513', // Dark brown (now second)
+    option3: '#a67c52', // Medium brown
+    option4: '#d4b08c', // Light brown
 };
 
 export default function Kahoot() {
@@ -21,13 +21,25 @@ export default function Kahoot() {
     const [score, setScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState<number>(5);
     const [timerActive, setTimerActive] = useState<boolean>(false);
-    const [timerWidth] = useState(new Animated.Value(1));
 
     // New states for feedback
     const [showFeedback, setShowFeedback] = useState(false);
     const [isCorrect, setIsCorrect] = useState(false);
     const [correctAnswer, setCorrectAnswer] = useState('');
     const [feedbackTimeout, setFeedbackTimeout] = useState<NodeJS.Timeout | null>(null);
+
+
+
+    // Use a ref instead of state for the animation
+    const timerAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
+    const [timerWidth] = useState(new Animated.Value(1));
+
+
+    // Add a new state to track when the screen should be frozen
+    const [screenFrozen, setScreenFrozen] = useState(false);
+
+    // Add a state to track if we should show the timer
+    const [showTimer, setShowTimer] = useState(true);
 
     useEffect(() => {
         setupGame();
@@ -36,6 +48,9 @@ export default function Kahoot() {
         return () => {
             if (feedbackTimeout) {
                 clearTimeout(feedbackTimeout);
+            }
+            if (timerAnimationRef.current) {
+                timerAnimationRef.current.stop();
             }
         };
     }, []);
@@ -52,8 +67,13 @@ export default function Kahoot() {
     const loadNewQuestion = async () => {
         setIsLoading(true);
         setTimerActive(false);
-        timerWidth.setValue(1);
         setShowFeedback(false);
+
+        // Reset the timer width to full without animation
+        timerWidth.setValue(1);
+
+        // Show the timer again
+        setShowTimer(true);
 
         const speaker = await getRandomSpeaker();
         setCurrentSpeaker(speaker);
@@ -75,6 +95,7 @@ export default function Kahoot() {
         setOptions(allOptions);
         setIsLoading(false);
 
+        // Add a small delay before starting the timer to ensure UI is ready
         setTimeout(() => {
             startTimer();
         }, 100);
@@ -83,11 +104,31 @@ export default function Kahoot() {
     const startTimer = () => {
         setTimeLeft(5);
         setTimerActive(true);
-        Animated.timing(timerWidth, {
+
+        // Reset the timer width to full
+        timerWidth.setValue(1);
+
+        // Cancel any existing animation
+        if (timerAnimationRef.current) {
+            timerAnimationRef.current.stop();
+        }
+
+        // Create a new animation
+        const animation = Animated.timing(timerWidth, {
             toValue: 0,
             duration: 5000,
             useNativeDriver: false,
-        }).start();
+        });
+
+        // Store the animation reference
+        timerAnimationRef.current = animation;
+
+        // Start the animation
+        animation.start(({ finished }) => {
+            if (finished && timerActive) {
+                handleTimeout();
+            }
+        });
     };
 
     useEffect(() => {
@@ -105,11 +146,18 @@ export default function Kahoot() {
     const handleTimeout = () => {
         if (!currentSpeaker || !timerActive) return;
 
+        // Hide the timer
+        setShowTimer(false);
+
+        // Clear the animation reference
+        timerAnimationRef.current = null;
+
+        // Update the UI state
+        setShowFeedback(true);
         setTimerActive(false);
         setIsCorrect(false);
-        setShowFeedback(true);
 
-        // Set a timeout to move to the next question after showing feedback
+        // Set a timeout to move to the next question
         const timeout = setTimeout(() => {
             loadNewQuestion();
         }, 2000);
@@ -118,31 +166,36 @@ export default function Kahoot() {
     };
 
     const handleAnswer = (selectedAnswer: string) => {
+        // First, hide the timer completely
+        setShowTimer(false);
+
+        // Stop the timer animation
+        if (timerAnimationRef.current) {
+            timerAnimationRef.current.stop();
+            timerAnimationRef.current = null;
+        }
+
+        // Update the UI state
+        setShowFeedback(true);
         setTimerActive(false);
+
         if (!currentSpeaker) return;
 
         const correct = selectedAnswer === currentSpeaker.answer;
         setIsCorrect(correct);
-        setShowFeedback(true);
 
         if (correct) {
             setScore(prev => prev + 1);
         }
 
-        // Set a timeout to move to the next question after showing feedback
+        // Set a timeout to move to the next question
         const timeout = setTimeout(() => {
             loadNewQuestion();
-        }, 2000);
+        }, 4000);
 
         setFeedbackTimeout(timeout);
     };
 
-    const getFontSize = (text: string) => {
-        const length = text.length;
-        if (length > 30) return 14;
-        if (length > 20) return 16;
-        return 18;
-    };
 
     const getVerseFontSize = (text: string) => {
         const length = text.length;
@@ -162,20 +215,27 @@ export default function Kahoot() {
 
     return (
         <View style={styles.container}>
+            {/* Add a transparent overlay when the screen is frozen */}
+            {screenFrozen && (
+                <View style={styles.frozenOverlay} />
+            )}
+
             <View style={styles.topSection}>
                 <Text style={styles.title}>Scripture Quiz</Text>
                 <View style={styles.timerContainer}>
-                    <Animated.View
-                        style={[
-                            styles.timerBar,
-                            {
-                                width: timerWidth.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: ['0%', '100%']
-                                })
-                            }
-                        ]}
-                    />
+                    {showTimer && (
+                        <Animated.View
+                            style={[
+                                styles.timerBar,
+                                {
+                                    width: timerWidth.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0%', '100%']
+                                    })
+                                }
+                            ]}
+                        />
+                    )}
                 </View>
                 <View style={styles.scoreContainer}>
                     <Text style={styles.scoreLabel}>SCORE</Text>
@@ -193,15 +253,21 @@ export default function Kahoot() {
                 >
                     {currentSpeaker.hint}
                 </Text>
-            </View>
 
-            {showFeedback && (
-                <View style={[styles.feedbackContainer, isCorrect ? styles.correctFeedback : styles.incorrectFeedback]}>
-                    <Text style={styles.feedbackText}>
-                        {isCorrect ? 'Correct!' : `Incorrect! The answer was ${correctAnswer}`}
-                    </Text>
+                {/* Add a feedback placeholder that's always there */}
+                <View style={styles.feedbackPlaceholder}>
+                    {showFeedback && (
+                        <View style={[
+                            styles.feedbackContainer,
+                            isCorrect ? styles.correctFeedback : styles.incorrectFeedback
+                        ]}>
+                            <Text style={styles.feedbackText}>
+                                {isCorrect ? 'Correct!' : `Incorrect! The answer was ${correctAnswer}`}
+                            </Text>
+                        </View>
+                    )}
                 </View>
-            )}
+            </View>
 
             <View style={styles.bottomSection}>
                 <View style={styles.grid}>
@@ -221,8 +287,6 @@ export default function Kahoot() {
                                 <Text
                                     style={styles.boxText}
                                     numberOfLines={2}
-                                    adjustsFontSizeToFit
-                                    minimumFontScale={0.5}
                                 >
                                     {option}
                                 </Text>
@@ -239,18 +303,18 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: "#f5e6d3", // Parchment background
-        paddingBottom: 20,
+        paddingBottom: 10,
     },
     topSection: {
-        padding: 20,
+        padding: 10,
         alignItems: 'center',
-        height: '25%',
+        height: '20%',
     },
     title: {
-        fontSize: 36,
+        fontSize: 28,
         fontWeight: "900",
         color: '#2c1810',
-        marginBottom: 16,
+        marginBottom: 10,
         textAlign: 'center',
         letterSpacing: 1,
         textTransform: 'uppercase',
@@ -259,13 +323,14 @@ const styles = StyleSheet.create({
         textShadowRadius: 2,
     },
     middleSection: {
-        height: '35%',
+        height: 'auto',
         justifyContent: 'center',
-        paddingHorizontal: 20,
+        paddingHorizontal: 15,
         backgroundColor: 'rgba(139, 69, 19, 0.08)',
-        margin: 10,
-        borderRadius: 20,
-        paddingVertical: 20,
+        margin: 8,
+        borderRadius: 15,
+        paddingVertical: 15,
+        marginBottom: 10,
     },
     bottomSection: {
         height: '35%',
@@ -274,10 +339,10 @@ const styles = StyleSheet.create({
     },
     scoreContainer: {
         backgroundColor: '#8b4513',
-        paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 25,
-        marginTop: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 6,
+        borderRadius: 20,
+        marginTop: 5,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,
@@ -286,7 +351,7 @@ const styles = StyleSheet.create({
     },
     scoreLabel: {
         color: '#e8d5c4',
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: "800",
         textAlign: 'center',
         letterSpacing: 2,
@@ -294,7 +359,7 @@ const styles = StyleSheet.create({
     },
     scoreValue: {
         color: '#fff',
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: "900",
         textAlign: 'center',
         textShadowColor: 'rgba(0, 0, 0, 0.3)',
@@ -303,43 +368,41 @@ const styles = StyleSheet.create({
     },
     verse: {
         textAlign: 'center',
-        padding: 25,
+        padding: 15,
         backgroundColor: '#d4b08c',
-        borderRadius: 15,
+        borderRadius: 12,
         borderWidth: 2,
         borderColor: '#8b4513',
         color: '#2c1810',
         fontWeight: "600",
-        fontSize: 20,
-        minHeight: 200,
-        maxHeight: 250,
+        fontSize: 18,
+        minHeight: 150,
+        maxHeight: 200,
         justifyContent: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 5,
         elevation: 6,
-        marginHorizontal: 10,
+        marginHorizontal: 5,
         borderStyle: 'solid',
         textShadowColor: 'rgba(0, 0, 0, 0.15)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
     },
     grid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        padding: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
+        flexDirection: 'column',
+        gap: 8,
+        padding: 8,
+        width: '100%',
     },
     box: {
-        width: '47%',
-        aspectRatio: 2,
+        width: '100%',
+        height: 50,
         flexDirection: 'row',
         alignItems: 'center',
         borderRadius: 8,
-        padding: 10,
+        padding: 8,
         borderWidth: 1,
         borderColor: '#2c1810',
         shadowColor: '#000',
@@ -382,22 +445,22 @@ const styles = StyleSheet.create({
         borderRadius: 5,
     },
     // Feedback styles
+    feedbackPlaceholder: {
+        height: 60,
+        justifyContent: 'center',
+        marginTop: 10,
+    },
     feedbackContainer: {
-        position: 'absolute',
-        top: '50%',
-        left: '10%',
-        right: '10%',
-        padding: 15,
-        borderRadius: 10,
+        padding: 10,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10,
+        borderWidth: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
         elevation: 8,
-        borderWidth: 2,
     },
     correctFeedback: {
         backgroundColor: 'rgba(139, 69, 19, 0.9)', // Brown with opacity
@@ -409,7 +472,7 @@ const styles = StyleSheet.create({
     },
     feedbackText: {
         color: 'white',
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: "bold",
         textAlign: 'center',
         textShadowColor: 'rgba(0, 0, 0, 0.5)',
@@ -427,5 +490,14 @@ const styles = StyleSheet.create({
     },
     disabledBox: {
         opacity: 0.6,
-    }
+    },
+    frozenOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'transparent',
+        zIndex: 100, // Above everything else
+    },
 });
