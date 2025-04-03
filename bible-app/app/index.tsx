@@ -16,6 +16,7 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
+
       <Text style={styles.title}>Bible Word Games</Text>
       <Link href="/wordle" style={styles.button}>
         <Text style={styles.buttonText}>Wordle</Text>
@@ -29,7 +30,9 @@ export default function Home() {
       <Link href="/hotcoldverseguess" style={styles.button}>
         <Text style={styles.buttonText}>Hot & Cold</Text>
       </Link>
-
+      <Link href="/versele" style={styles.button}>
+        <Text style={styles.buttonText}>Versele</Text>
+      </Link>
       {/* Only show in development */}
       {__DEV__ && (
         <Text

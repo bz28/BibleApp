@@ -34,6 +34,12 @@ export default function Layout() {
           title: 'Hot & Cold Verse Guess'
         }}
       />
+      <Stack.Screen
+        name="versele"
+        options={{
+          title: 'Versele'
+        }}
+      />
     </Stack>
   );
 }
