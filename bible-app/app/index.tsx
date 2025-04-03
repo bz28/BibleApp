@@ -1,7 +1,9 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Link } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from "react-native";
+import { useEffect } from 'react';
+import { initDatabase } from './database/database';
 
 export default function Home() {
   const clearStorage = async () => {
@@ -13,6 +15,13 @@ export default function Home() {
       Alert.alert('Error', 'Failed to clear storage');
     }
   };
+
+  useEffect(() => {
+    console.log("Initializing database from index page...");
+    initDatabase()
+      .then(() => console.log("Database initialized successfully!"))
+      .catch(error => console.error("Database initialization failed:", error));
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -41,6 +50,33 @@ export default function Home() {
         >
           Clear Storage (Debug)
         </Text>
+      )}
+      {/* Database Fix Button - only in development mode */}
+      {__DEV__ && (
+        <View style={{ marginTop: 20, marginBottom: 10 }}>
+          <Link href="/dbfix" asChild>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#e74c3c',
+                padding: 10,
+                borderRadius: 5,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                marginVertical: 5,
+                borderWidth: 1,
+                borderColor: '#c0392b',
+              }}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold', marginLeft: 5 }}>
+                Fix Database Issues
+              </Text>
+            </TouchableOpacity>
+          </Link>
+          <Text style={{ textAlign: 'center', fontSize: 12, color: '#888', marginTop: 5 }}>
+            Use this if you encounter errors in Versele
+          </Text>
+        </View>
       )}
     </View>
   );

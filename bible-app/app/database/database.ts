@@ -10,18 +10,27 @@ export const initDatabase = (): Promise<boolean> => {
         // Enable WAL mode for better performance
         db.execAsync('PRAGMA journal_mode = WAL')
             .then(() => {
-                // Create tables and insert data
+                // Create speakers table
                 return db.execAsync(createSpeakerTable);
             })
             .then(() => {
-                return db.execAsync(createReferencesTable);
-            })
-            .then(() => {
-                console.log('Tables created successfully');
+                // Insert speaker data
                 return db.execAsync(initialSpeakers);
             })
             .then(() => {
-                return db.execAsync(insertReferences);
+                // Check if verse_references table exists
+                return db.getAllAsync(`SELECT name FROM sqlite_master WHERE type='table' AND name='verse_references'`);
+            })
+            .then((result) => {
+                if (result.length === 0) {
+                    // If verse_references table doesn't exist, create it
+                    console.log('Creating verse_references table...');
+                    return db.execAsync(createReferencesTable)
+                        .then(() => db.execAsync(insertReferences));
+                } else {
+                    console.log('verse_references table already exists');
+                    return Promise.resolve();
+                }
             })
             .then(() => {
                 console.log('Database initialized successfully');
@@ -85,3 +94,29 @@ export const getVerseReferenceById = (id: number): Promise<VerseReference> => {
             });
     });
 }
+
+// Add this function to safely recreate tables
+export const recreateVerseReferencesTable = (): Promise<boolean> => {
+    return new Promise((resolve, reject) => {
+        console.log('Recreating verse_references table...');
+
+        // Drop the existing table first
+        db.execAsync('DROP TABLE IF EXISTS verse_references;')
+            .then(() => {
+                // Create the table with the correct schema
+                return db.execAsync(createReferencesTable);
+            })
+            .then(() => {
+                // Insert the initial data
+                return db.execAsync(insertReferences);
+            })
+            .then(() => {
+                console.log('Verse references table recreated successfully');
+                resolve(true);
+            })
+            .catch(error => {
+                console.error('Error recreating verse_references table:', error);
+                reject(error);
+            });
+    });
+};

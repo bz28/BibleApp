@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated, Modal, FlatList, ScrollView } from "react-native";
-import { initDatabase, getRandomSpeaker } from './database/database';
-import { Speaker } from './database/schema';
+import { initDatabase, getRandomVerseReference } from './database/database';
+import { VerseReference } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Bible books in order
@@ -22,15 +22,14 @@ const MAX_GUESSES = 5;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
-type LetterState = 'correct' | 'present' | 'absent' | 'unused';
+
 
 export default function Versele() {
     const [guesses, setGuesses] = useState<{ book: string, chapterVerse: string }[]>(
         Array(MAX_GUESSES).fill({ book: "", chapterVerse: "" })
     );
     const [currentRow, setCurrentRow] = useState(0);
-    const [currentVerse, setCurrentVerse] = useState<Speaker | null>(null);
-    const [targetReference, setTargetReference] = useState({ book: "", chapter: 0, verse: 0 });
+    const [currentVerse, setCurrentVerse] = useState<VerseReference | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [gameCompleted, setGameCompleted] = useState(false);
     const [revealedBoxes, setRevealedBoxes] = useState<number>(-1);
@@ -38,6 +37,8 @@ export default function Versele() {
     const [selectedBook, setSelectedBook] = useState("");
     const [chapterVerseInput, setChapterVerseInput] = useState("");
     const [showBookModal, setShowBookModal] = useState(false);
+    const [selectedRowIndex, setSelectedRowIndex] = useState(0);
+    const [selectedBoxType, setSelectedBoxType] = useState<'book' | 'chapter' | 'verse' | null>(null);
 
     useEffect(() => {
         const setupGame = async () => {
@@ -63,7 +64,6 @@ export default function Versele() {
                                         setGuesses(gameState.guesses);
                                         setCurrentRow(gameState.currentRow);
                                         setCurrentVerse(gameState.currentVerse);
-                                        setTargetReference(gameState.targetReference);
                                         setGameCompleted(true);
                                         setIsLoading(false);
                                     }
@@ -101,17 +101,17 @@ export default function Versele() {
 
     useEffect(() => {
         saveGameState();
-    }, [guesses, currentRow, currentVerse, gameCompleted, targetReference]);
+    }, [guesses, currentRow, currentVerse, gameCompleted]);
 
     useEffect(() => {
-        if (targetReference.book) {
+        if (currentVerse) {
             setFlipAnimations(
                 Array(MAX_GUESSES).fill(null).map(() =>
                     Array(5).fill(null).map(() => new Animated.Value(0))
                 )
             );
         }
-    }, [targetReference]);
+    }, [currentVerse]);
 
     const checkIfCanPlay = async () => {
         const lastPlayed = await AsyncStorage.getItem('lastVerselePlayed');
@@ -137,42 +137,26 @@ export default function Versele() {
     const loadNewVerse = async () => {
         try {
             setIsLoading(true);
-            const verse = await getRandomSpeaker();
+            console.log("======= STARTING TO LOAD NEW VERSE =======");
 
-            // Add sample Bible verses to use instead of hints
-            const sampleVerses = [
-                "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
-                "The Lord is my shepherd, I lack nothing. He makes me lie down in green pastures, he leads me beside quiet waters, he refreshes my soul.",
-                "I can do all this through him who gives me strength.",
-                "Trust in the LORD with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.",
-                "And we know that in all things God works for the good of those who love him, who have been called according to his purpose."
-            ];
+            const verse = await getRandomVerseReference();
 
-            // Use the random verse text instead of the hint
-            const randomVerseText = sampleVerses[Math.floor(Math.random() * sampleVerses.length)];
+            // Add detailed debug logging
+            console.log("============ DEBUG VERSE INFO ============");
+            console.log("Verse loaded from database:", JSON.stringify(verse, null, 2));
+            console.log("Verse book:", verse.book);
+            console.log("Verse chapter:", verse.chapter);
+            console.log("Verse verse:", verse.verse);
+            console.log("Verse text:", verse.text);
+            console.log("Verse object type:", Object.prototype.toString.call(verse));
+            console.log("Verse keys:", Object.keys(verse));
+            console.log("=========================================");
 
-            // Create a modified verse object with actual Bible verse text
-            const modifiedVerse = {
-                ...verse,
-                hint: randomVerseText // Replace hint with actual verse text
-            };
+            // Set the current verse only
+            setCurrentVerse(verse);
 
-            console.log("DEBUG - Original Verse Hint:", verse.hint);
-            console.log("DEBUG - Modified Verse Hint:", modifiedVerse.hint);
-
-            setCurrentVerse(modifiedVerse);
-
-            // Rest of your function remains the same
-            const randomBookIndex = Math.floor(Math.random() * BIBLE_BOOKS.length);
-            const randomBook = BIBLE_BOOKS[randomBookIndex];
-            const randomChapter = Math.floor(Math.random() * 28) + 1;
-            const randomVerse = Math.floor(Math.random() * 30) + 1;
-
-            setTargetReference({
-                book: randomBook,
-                chapter: randomChapter,
-                verse: randomVerse
-            });
+            console.log("Current verse set to:", JSON.stringify(verse, null, 2));
+            console.log("======= FINISHED LOADING NEW VERSE =======");
 
             setGuesses(Array(MAX_GUESSES).fill({ book: "", chapterVerse: "" }));
             setCurrentRow(0);
@@ -187,114 +171,49 @@ export default function Versele() {
     };
 
     const handleKeyPress = (key: string) => {
-        if (!currentVerse || gameCompleted) return;
+        if (!currentVerse || gameCompleted || !selectedBoxType) return;
 
-        // Handle number input for chapter and verse
         if (key === "BACKSPACE") {
             setChapterVerseInput(prev => prev.slice(0, -1));
         } else if (key === "ENTER") {
-            handleSubmitGuess();
-        } else if (key !== ":" && chapterVerseInput.length < 5) { // Allow max 5 chars (2 for chapter, 1 colon, 2 for verse)
-            // If we're adding a digit, make sure it's in the right position
-            if (chapterVerseInput.includes(":")) {
-                // After colon, only allow 2 verse digits
-                const [, verse] = chapterVerseInput.split(":");
-                if (verse && verse.length >= 2) return;
+            completeNumberInput();
+        } else if (selectedBoxType === 'chapter') {
+            // Only allow 2 digits for chapter
+            if (chapterVerseInput.length < 2) {
                 setChapterVerseInput(prev => prev + key);
+            }
+        } else if (selectedBoxType === 'verse') {
+            // If we're entering verse directly, make sure we have the colon
+            if (!chapterVerseInput.includes(":")) {
+                const guess = guesses[selectedRowIndex];
+                const chapterPart = guess.chapterVerse ? guess.chapterVerse.split(":")[0] : "";
+
+                if (chapterPart) {
+                    setChapterVerseInput(chapterPart + ":" + key);
+                }
             } else {
-                // Before colon, check if we need to add a colon
-                if (chapterVerseInput.length === 2) {
-                    // Add colon automatically after 2 chapter digits
-                    setChapterVerseInput(prev => prev + ":" + key);
-                } else {
-                    // Just add the digit
+                const [, verse] = chapterVerseInput.split(":");
+                // Only allow 2 digits for verse
+                if (!verse || verse.length < 2) {
                     setChapterVerseInput(prev => prev + key);
                 }
             }
         }
     };
 
-    const handleSubmitGuess = () => {
-        if (!selectedBook) {
-            Alert.alert("Error", "Please select a book");
-            return;
-        }
-
-        // Validate chapter:verse format
-        if (!chapterVerseInput.includes(":")) {
-            Alert.alert("Error", "Please enter chapter:verse format (e.g. 3:16)");
-            return;
-        }
-
-        const [chapterStr, verseStr] = chapterVerseInput.split(":");
-        if (!chapterStr || !verseStr) {
-            Alert.alert("Error", "Invalid chapter:verse format");
-            return;
-        }
-
-        // Save the guess
+    const selectBook = (book: string) => {
         const newGuesses = [...guesses];
-        newGuesses[currentRow] = {
-            book: selectedBook,
-            chapterVerse: chapterVerseInput
+        newGuesses[selectedRowIndex] = {
+            ...newGuesses[selectedRowIndex],
+            book: book
         };
         setGuesses(newGuesses);
-
-        // Check if the guess is correct
-        const guessedChapter = parseInt(chapterStr);
-        const guessedVerse = parseInt(verseStr);
-
-        const isCorrect = selectedBook === targetReference.book &&
-            guessedChapter === targetReference.chapter &&
-            guessedVerse === targetReference.verse;
-
-        if (isCorrect) {
-            revealRow(currentRow);
-            setGameCompleted(true);
-            setTimeout(() => {
-                Alert.alert(
-                    "Congratulations!",
-                    "You guessed the verse reference correctly!",
-                    [
-                        {
-                            text: "OK",
-                            onPress: () => {
-                                AsyncStorage.setItem('lastVerselePlayed', new Date().getTime().toString());
-                            }
-                        }
-                    ]
-                );
-            }, 1500);
-            return;
-        }
-
-        // Check if this was the last guess
-        if (currentRow === MAX_GUESSES - 1) {
-            revealRow(currentRow);
-            setGameCompleted(true);
-            setTimeout(() => {
-                Alert.alert(
-                    "Game Over",
-                    `The correct reference was: ${targetReference.book} ${targetReference.chapter}:${targetReference.verse}`,
-                    [{ text: "OK" }]
-                );
-            }, 1500);
-            return;
-        }
-
-        // Move to next row
-        revealRow(currentRow);
-        setCurrentRow(currentRow + 1);
-        setSelectedBook("");
-        setChapterVerseInput("");
-    };
-
-    const selectBook = (book: string) => {
         setSelectedBook(book);
         setShowBookModal(false);
     };
 
     const getGuessColor = (rowIndex: number, type: 'book' | 'chapter' | 'colon' | 'verse', digitIndex = 0): string => {
+        if (!currentVerse) return "#fff";
         if (rowIndex > currentRow) return "#fff";
         if (rowIndex === currentRow && revealedBoxes < 0) return "#fff";
 
@@ -323,17 +242,19 @@ export default function Versele() {
 
         // Extract chapter and verse from the guess
         const [chapterStr, verseStr] = guess.chapterVerse.split(":");
-        const guessedChapter = parseInt(chapterStr || "0");
-        const guessedVerse = parseInt(verseStr || "0");
+
+        // Ensure we have strings for comparison
+        const targetChapter = String(currentVerse.chapter);
+        const targetVerse = String(currentVerse.verse);
 
         // Book color
         if (type === 'book') {
-            if (guess.book === targetReference.book) {
+            if (guess.book === currentVerse.book) {
                 return "#5B8A51"; // Green - correct
             } else {
                 // Check if the book is close to the target book
                 const guessIndex = BIBLE_BOOKS.indexOf(guess.book);
-                const targetIndex = BIBLE_BOOKS.indexOf(targetReference.book);
+                const targetIndex = BIBLE_BOOKS.indexOf(currentVerse.book);
 
                 if (Math.abs(guessIndex - targetIndex) <= 5) {
                     return "#B59F3B"; // Yellow - close
@@ -342,34 +263,36 @@ export default function Versele() {
             }
         }
 
-        // Chapter color
+        // Chapter color - Wordle style
         if (type === 'chapter') {
-            if (guessedChapter === targetReference.chapter) {
+            // Get the specific digit
+            const digit = chapterStr[digitIndex] || '';
+            const targetDigit = targetChapter[digitIndex] || '';
+
+            // Exact match at the specific position
+            if (digit === targetDigit && digit !== '') {
                 return "#5B8A51"; // Green - correct
-            } else if (Math.abs(guessedChapter - targetReference.chapter) <= 3) {
-                return "#B59F3B"; // Yellow - close
+            }
+            // Digit exists in the target but in a different position
+            else if (targetChapter.includes(digit) && digit !== '') {
+                return "#B59F3B"; // Yellow - wrong position
             }
             return "#A94442"; // Red - wrong
         }
 
-        // Colon color - matches chapter color
-        if (type === 'colon') {
-            if (guessedChapter === targetReference.chapter) {
-                return "#5B8A51"; // Green
-            } else if (Math.abs(guessedChapter - targetReference.chapter) <= 3) {
-                return "#B59F3B"; // Yellow
-            }
-            return "#A94442"; // Red
-        }
-
-        // Verse color
+        // Verse color - Wordle style
         if (type === 'verse') {
-            if (guessedVerse === targetReference.verse && guessedChapter === targetReference.chapter) {
-                return "#5B8A51"; // Green - correct chapter and verse
-            } else if (guessedVerse === targetReference.verse) {
-                return "#B59F3B"; // Yellow - correct verse, wrong chapter
-            } else if (Math.abs(guessedVerse - targetReference.verse) <= 3) {
-                return "#B59F3B"; // Yellow - close
+            // Get the specific digit
+            const digit = verseStr[digitIndex] || '';
+            const targetDigit = targetVerse[digitIndex] || '';
+
+            // Exact match at the specific position
+            if (digit === targetDigit && digit !== '') {
+                return "#5B8A51"; // Green - correct
+            }
+            // Digit exists in the target but in a different position
+            else if (targetVerse.includes(digit) && digit !== '') {
+                return "#B59F3B"; // Yellow - wrong position
             }
             return "#A94442"; // Red - wrong
         }
@@ -395,21 +318,22 @@ export default function Versele() {
             const chapterDigits = chapterText.padEnd(2, ' ').split('');
             const verseDigits = verseText.padEnd(2, ' ').split('');
 
+            // Only allow interaction with the current row
+            const isCurrentRow = rowIndex === currentRow;
+
             return (
                 <View key={rowIndex} style={styles.row}>
-                    {/* Book box */}
-                    <Animated.View
+                    {/* Book box - clickable */}
+                    <TouchableOpacity
+                        disabled={!isCurrentRow || gameCompleted}
+                        onPress={() => {
+                            setSelectedRowIndex(rowIndex);
+                            setSelectedBoxType('book');
+                            setShowBookModal(true);
+                        }}
                         style={[
                             styles.bookBox,
-                            {
-                                backgroundColor: getGuessColor(rowIndex, 'book'),
-                                transform: [{
-                                    rotateX: flipAnimations[rowIndex]?.[0]?.interpolate({
-                                        inputRange: [0, 0.5, 1],
-                                        outputRange: ['0deg', '90deg', '180deg'],
-                                    }) || '0deg'
-                                }]
-                            }
+                            { backgroundColor: getGuessColor(rowIndex, 'book') }
                         ]}
                     >
                         <Text style={[
@@ -418,168 +342,75 @@ export default function Versele() {
                         ]}>
                             {guess.book || ""}
                         </Text>
-                    </Animated.View>
+                    </TouchableOpacity>
 
-                    {/* Chapter boxes (2 digits) */}
-                    {chapterDigits.map((digit, index) => (
-                        <Animated.View
-                            key={`chapter-${index}`}
-                            style={[
-                                styles.digitBox,
-                                {
-                                    backgroundColor: getGuessColor(rowIndex, 'chapter', index),
-                                    transform: [{
-                                        rotateX: flipAnimations[rowIndex]?.[index + 1]?.interpolate({
-                                            inputRange: [0, 0.5, 1],
-                                            outputRange: ['0deg', '90deg', '180deg'],
-                                        }) || '0deg'
-                                    }]
-                                }
-                            ]}
-                        >
-                            <Text style={[
-                                styles.digitText,
-                                getGuessColor(rowIndex, 'chapter', index) !== "#fff" && { color: "#fff" }
-                            ]}>
-                                {digit}
-                            </Text>
-                        </Animated.View>
-                    ))}
+                    {/* Chapter boxes (2 digits) - clickable */}
+                    <TouchableOpacity
+                        disabled={!isCurrentRow || gameCompleted || !guess.book}
+                        onPress={() => {
+                            setSelectedRowIndex(rowIndex);
+                            setSelectedBoxType('chapter');
+                            // Clear existing chapter:verse input and start fresh
+                            setChapterVerseInput("");
+                        }}
+                        style={styles.doubleDigitContainer}
+                    >
+                        {chapterDigits.map((digit, index) => (
+                            <View
+                                key={`chapter-${index}`}
+                                style={[
+                                    styles.digitBox,
+                                    { backgroundColor: getGuessColor(rowIndex, 'chapter', index) }
+                                ]}
+                            >
+                                <Text style={[
+                                    styles.digitText,
+                                    getGuessColor(rowIndex, 'chapter', index) !== "#fff" && { color: "#fff" }
+                                ]}>
+                                    {digit}
+                                </Text>
+                            </View>
+                        ))}
+                    </TouchableOpacity>
 
                     {/* Fixed colon */}
                     <Text style={styles.fixedColon}>:</Text>
 
-                    {/* Verse boxes (2 digits) */}
-                    {verseDigits.map((digit, index) => (
-                        <Animated.View
-                            key={`verse-${index}`}
-                            style={[
-                                styles.digitBox,
-                                {
-                                    backgroundColor: getGuessColor(rowIndex, 'verse', index),
-                                    transform: [{
-                                        rotateX: flipAnimations[rowIndex]?.[index + 3]?.interpolate({
-                                            inputRange: [0, 0.5, 1],
-                                            outputRange: ['0deg', '90deg', '180deg'],
-                                        }) || '0deg'
-                                    }]
-                                }
-                            ]}
-                        >
-                            <Text style={[
-                                styles.digitText,
-                                getGuessColor(rowIndex, 'verse', index) !== "#fff" && { color: "#fff" }
-                            ]}>
-                                {digit}
-                            </Text>
-                        </Animated.View>
-                    ))}
+                    {/* Verse boxes (2 digits) - clickable */}
+                    <TouchableOpacity
+                        disabled={!isCurrentRow || gameCompleted || !guess.book || !chapterText}
+                        onPress={() => {
+                            setSelectedRowIndex(rowIndex);
+                            setSelectedBoxType('verse');
+                            // If there's already chapter input, preserve it
+                            if (chapterText) {
+                                setChapterVerseInput(chapterText + ":");
+                            } else {
+                                setChapterVerseInput("");
+                            }
+                        }}
+                        style={styles.doubleDigitContainer}
+                    >
+                        {verseDigits.map((digit, index) => (
+                            <View
+                                key={`verse-${index}`}
+                                style={[
+                                    styles.digitBox,
+                                    { backgroundColor: getGuessColor(rowIndex, 'verse', index) }
+                                ]}
+                            >
+                                <Text style={[
+                                    styles.digitText,
+                                    getGuessColor(rowIndex, 'verse', index) !== "#fff" && { color: "#fff" }
+                                ]}>
+                                    {digit}
+                                </Text>
+                            </View>
+                        ))}
+                    </TouchableOpacity>
                 </View>
             );
         });
-    };
-
-    const renderCurrentGuessInput = () => {
-        if (gameCompleted) return null;
-
-        // Parse current input
-        let chapterText = "";
-        let verseText = "";
-        let hasColon = chapterVerseInput.includes(":");
-
-        if (hasColon) {
-            const parts = chapterVerseInput.split(":");
-            chapterText = parts[0] || "";
-            verseText = parts[1] || "";
-        } else {
-            chapterText = chapterVerseInput;
-        }
-
-        // Pad chapter and verse with empty space
-        const chapterDigits = chapterText.padEnd(2, '').split('');
-        const verseDigits = verseText.padEnd(2, '').split('');
-
-        return (
-            <View style={styles.inputContainer}>
-                {/* Book selector */}
-                <TouchableOpacity
-                    style={styles.bookSelector}
-                    onPress={() => setShowBookModal(true)}
-                >
-                    <Text style={styles.selectorText}>
-                        {selectedBook || "Select Book"}
-                    </Text>
-                </TouchableOpacity>
-
-                {/* Chapter input boxes */}
-                {[0, 1].map(index => (
-                    <View key={`chapter-input-${index}`} style={styles.digitInput}>
-                        <Text style={styles.inputText}>{chapterDigits[index] || ""}</Text>
-                    </View>
-                ))}
-
-                {/* Fixed colon */}
-                <Text style={styles.fixedColon}>:</Text>
-
-                {/* Verse input boxes */}
-                {[0, 1].map(index => (
-                    <View key={`verse-input-${index}`} style={styles.digitInput}>
-                        <Text style={styles.inputText}>{verseDigits[index] || ""}</Text>
-                    </View>
-                ))}
-            </View>
-        );
-    };
-
-    const renderNumberKeyboard = () => {
-        const keys = [
-            ["1", "2", "3", "4"],
-            ["5", "6", "7", "8"],
-            ["9", "0", "BACKSPACE"],
-            ["ENTER"]
-        ];
-
-        return (
-            <View style={styles.keyboard}>
-                {keys.map((row, rowIndex) => (
-                    <View key={rowIndex} style={styles.keyboardRow}>
-                        {row.map((key) => {
-                            if (key === "ENTER") {
-                                return (
-                                    <TouchableOpacity
-                                        key={key}
-                                        style={[styles.keyEnter, { width: 180 }]}
-                                        onPress={() => handleKeyPress(key)}
-                                    >
-                                        <Text style={styles.keyText}>{key}</Text>
-                                    </TouchableOpacity>
-                                );
-                            } else if (key === "BACKSPACE") {
-                                return (
-                                    <TouchableOpacity
-                                        key={key}
-                                        style={styles.key}
-                                        onPress={() => handleKeyPress(key)}
-                                    >
-                                        <Text style={styles.keyText}>⌫</Text>
-                                    </TouchableOpacity>
-                                );
-                            } else {
-                                return (
-                                    <TouchableOpacity
-                                        key={key}
-                                        style={styles.key}
-                                        onPress={() => handleKeyPress(key)}
-                                    >
-                                        <Text style={styles.keyText}>{key}</Text>
-                                    </TouchableOpacity>
-                                );
-                            }
-                        })}
-                    </View>
-                ))}
-            </View>
-        );
     };
 
     const revealRow = async (rowIndex: number) => {
@@ -604,7 +435,6 @@ export default function Versele() {
             guesses,
             currentRow,
             currentVerse,
-            targetReference,
             gameCompleted,
         };
 
@@ -626,7 +456,6 @@ export default function Versele() {
                     setGuesses(gameState.guesses);
                     setCurrentRow(gameState.currentRow);
                     setCurrentVerse(gameState.currentVerse);
-                    setTargetReference(gameState.targetReference);
                     setGameCompleted(false);
                     setIsLoading(false);
                     return true;  // Yes, we loaded an active game
@@ -637,6 +466,116 @@ export default function Versele() {
             console.error('Error loading game state:', error);
             return false;
         }
+    };
+
+    const completeNumberInput = () => {
+        if (!chapterVerseInput || !selectedBoxType) return;
+
+        if (selectedBoxType === 'chapter') {
+            // Validate chapter input
+            if (chapterVerseInput.length === 0) return;
+
+            // Update the guess with just the chapter part
+            const newGuesses = [...guesses];
+            const currentChapterVerse = newGuesses[selectedRowIndex].chapterVerse || "";
+            const versePart = currentChapterVerse.includes(":") ? currentChapterVerse.split(":")[1] : "";
+
+            newGuesses[selectedRowIndex] = {
+                ...newGuesses[selectedRowIndex],
+                chapterVerse: chapterVerseInput + (versePart ? ":" + versePart : "")
+            };
+
+            setGuesses(newGuesses);
+            setSelectedBoxType(null);
+            setChapterVerseInput("");
+        }
+        else if (selectedBoxType === 'verse') {
+            // We should already have the chapter part in the input or current guess
+            const newGuesses = [...guesses];
+            const currentValue = newGuesses[selectedRowIndex].chapterVerse || "";
+            let chapterPart = "";
+
+            if (currentValue.includes(":")) {
+                chapterPart = currentValue.split(":")[0];
+            } else if (chapterVerseInput.includes(":")) {
+                chapterPart = chapterVerseInput.split(":")[0];
+            }
+
+            if (!chapterPart) return;
+
+            // Update with verse part
+            const versePart = chapterVerseInput.includes(":") ?
+                chapterVerseInput.split(":")[1] : chapterVerseInput;
+
+            newGuesses[selectedRowIndex] = {
+                ...newGuesses[selectedRowIndex],
+                chapterVerse: chapterPart + ":" + versePart
+            };
+
+            setGuesses(newGuesses);
+            setSelectedBoxType(null);
+            setChapterVerseInput("");
+
+            // If we have all parts filled, check if the guess is complete
+            if (newGuesses[selectedRowIndex].book &&
+                newGuesses[selectedRowIndex].chapterVerse &&
+                newGuesses[selectedRowIndex].chapterVerse.includes(":")) {
+                checkGuess(newGuesses[selectedRowIndex]);
+            }
+        }
+    };
+
+    const checkGuess = (guess: { book: string, chapterVerse: string }) => {
+        if (!currentVerse || !guess.book || !guess.chapterVerse || !guess.chapterVerse.includes(":")) return;
+
+        const [chapterStr, verseStr] = guess.chapterVerse.split(":");
+        if (!chapterStr || !verseStr) return;
+
+        // Convert to strings for comparison
+        const targetChapter = String(currentVerse.chapter);
+        const targetVerse = String(currentVerse.verse);
+
+        const isCorrect = guess.book === currentVerse.book &&
+            chapterStr === targetChapter &&
+            verseStr === targetVerse;
+
+        if (isCorrect) {
+            revealRow(currentRow);
+            setGameCompleted(true);
+            setTimeout(() => {
+                Alert.alert(
+                    "Congratulations!",
+                    "You guessed the verse reference correctly!",
+                    [
+                        {
+                            text: "OK",
+                            onPress: () => {
+                                AsyncStorage.setItem('lastVerselePlayed', new Date().getTime().toString());
+                            }
+                        }
+                    ]
+                );
+            }, 1500);
+            return;
+        }
+
+        // Check if this was the last guess
+        if (currentRow === MAX_GUESSES - 1) {
+            revealRow(currentRow);
+            setGameCompleted(true);
+            setTimeout(() => {
+                Alert.alert(
+                    "Game Over",
+                    `The correct reference was: ${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}`,
+                    [{ text: "OK" }]
+                );
+            }, 1500);
+            return;
+        }
+
+        // Move to next row
+        revealRow(currentRow);
+        setCurrentRow(currentRow + 1);
     };
 
     if (isLoading || !currentVerse) {
@@ -652,18 +591,77 @@ export default function Versele() {
         <View style={styles.container}>
             <Text style={styles.mainTitle}>Versele</Text>
 
-            {/* Convert debug box to verse display */}
+            {/* Verse display */}
             <View style={styles.verseBox}>
                 <Text style={styles.verseText}>
-                    {currentVerse?.hint || "Loading verse..."}
+                    {currentVerse.text || "Loading verse..."}
                 </Text>
+
+                {/* Debug info - only visible in development */}
+                {__DEV__ && (
+                    <View style={styles.debugInfo}>
+                        <Text style={styles.debugInfoText}>
+                            Target: {currentVerse.book} {currentVerse.chapter}:{currentVerse.verse}
+                        </Text>
+                    </View>
+                )}
             </View>
 
             <Text style={styles.subtitle}>Guess the Bible Reference</Text>
 
             <View style={styles.grid}>{renderGrid()}</View>
-            {renderCurrentGuessInput()}
-            {renderNumberKeyboard()}
+
+            {/* Current number input display */}
+            {selectedBoxType === 'chapter' || selectedBoxType === 'verse' ? (
+                <View style={styles.currentInputContainer}>
+                    <Text style={styles.currentInputText}>
+                        {chapterVerseInput}
+                    </Text>
+                </View>
+            ) : null}
+
+            {/* Number keyboard - only show when entering chapter or verse */}
+            {(selectedBoxType === 'chapter' || selectedBoxType === 'verse') && (
+                <View style={styles.keyboard}>
+                    {[["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["0", "BACKSPACE", "ENTER"]].map((row, rowIndex) => (
+                        <View key={rowIndex} style={styles.keyboardRow}>
+                            {row.map((key) => {
+                                if (key === "ENTER") {
+                                    return (
+                                        <TouchableOpacity
+                                            key={key}
+                                            style={[styles.keyEnter, { width: 90 }]}
+                                            onPress={() => handleKeyPress(key)}
+                                        >
+                                            <Text style={styles.keyText}>{key}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                } else if (key === "BACKSPACE") {
+                                    return (
+                                        <TouchableOpacity
+                                            key={key}
+                                            style={styles.key}
+                                            onPress={() => handleKeyPress(key)}
+                                        >
+                                            <Text style={styles.keyText}>⌫</Text>
+                                        </TouchableOpacity>
+                                    );
+                                } else {
+                                    return (
+                                        <TouchableOpacity
+                                            key={key}
+                                            style={styles.key}
+                                            onPress={() => handleKeyPress(key)}
+                                        >
+                                            <Text style={styles.keyText}>{key}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                }
+                            })}
+                        </View>
+                    ))}
+                </View>
+            )}
 
             {/* Book Selection Modal */}
             <Modal
@@ -945,9 +943,40 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         width: '100%',
     },
+    debugInfo: {
+        marginTop: 8,
+        padding: 4,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        borderRadius: 4,
+    },
     debugText: {
         color: '#0f0',
         fontSize: 10,
         fontFamily: 'monospace',
+    },
+    debugInfoText: {
+        color: '#00ff00',
+        fontSize: 12,
+        fontFamily: 'monospace',
+        textAlign: 'center',
+    },
+    doubleDigitContainer: {
+        flexDirection: 'row',
+        marginHorizontal: 2,
+    },
+    currentInputContainer: {
+        marginBottom: 10,
+        padding: 8,
+        borderWidth: 1,
+        borderRadius: 5,
+        borderColor: '#8b4513',
+        backgroundColor: '#faf1e6',
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    currentInputText: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: '#2c1810',
     },
 }); 
