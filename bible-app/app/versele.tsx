@@ -35,11 +35,7 @@ export default function Versele() {
     const [gameCompleted, setGameCompleted] = useState(false);
     const [revealedBoxes, setRevealedBoxes] = useState<number>(-1);
     const [flipAnimations, setFlipAnimations] = useState<Animated.Value[][]>([]);
-    const [selectedBook, setSelectedBook] = useState("");
-    const [chapterVerseInput, setChapterVerseInput] = useState("");
     const [showBookModal, setShowBookModal] = useState(false);
-    const [selectedRowIndex, setSelectedRowIndex] = useState(0);
-    const [selectedBoxType, setSelectedBoxType] = useState<'book' | 'chapter' | 'verse' | null>(null);
     const [currentInputType, setCurrentInputType] = useState<'book' | 'chapter' | 'verse'>('chapter');
 
     useEffect(() => {
@@ -162,8 +158,8 @@ export default function Versele() {
 
             setGuesses(Array(MAX_GUESSES).fill({ book: "", chapterVerse: "" }));
             setCurrentRow(0);
-            setSelectedBook("");
-            setChapterVerseInput("");
+
+
         } catch (error) {
             console.error('Error loading new verse:', error);
             Alert.alert('Error', 'Failed to load new verse');
@@ -321,7 +317,7 @@ export default function Versele() {
             book: book
         };
         setGuesses(newGuesses);
-        setSelectedBook(book);
+
         setShowBookModal(false);
         setCurrentInputType('chapter');
     };
@@ -362,6 +358,13 @@ export default function Versele() {
 
             // If this box hasn't been revealed yet in the animation sequence, show white
             if (boxIndex > revealedBoxes) return "#fff";
+
+            // If this is exactly the box being revealed right now, make sure to show color
+            if (boxIndex === revealedBoxes) {
+                // Continue with color calculation below
+            } else {
+                // For boxes already revealed in this row, show their colors
+            }
         }
 
         // If we're on current row but not in animation and not completed game, show white
@@ -498,9 +501,12 @@ export default function Versele() {
             // Only allow interaction with the current row
             const isCurrentRow = rowIndex === currentRow;
 
+            // Determine if this row is being revealed (animation in progress)
+            const isRevealing = rowIndex === currentRow && revealedBoxes >= 0;
+
             return (
                 <View key={rowIndex} style={styles.row}>
-                    {/* Book box - clickable */}
+                    {/* Book box - clickable with animation */}
                     <TouchableOpacity
                         disabled={!isCurrentRow || gameCompleted}
                         onPress={() => {
@@ -509,59 +515,129 @@ export default function Versele() {
                         style={[
                             styles.bookBox,
                             isCurrentRow && !gameCompleted && !guess.book ? styles.highlightedBox : null,
-                            { backgroundColor: getGuessColor(rowIndex, 'book') }
                         ]}
                     >
-                        <Text style={[
-                            styles.guessText,
-                            getGuessColor(rowIndex, 'book') !== "#fff" && { color: "#fff" }
-                        ]}>
-                            {guess.book || ""}
-                        </Text>
+                        <Animated.View
+                            style={[
+                                styles.animatedInnerBox,
+                                {
+                                    backgroundColor: getGuessColor(rowIndex, 'book'),
+                                    transform: rowIndex < currentRow || isRevealing ? [{
+                                        rotateX: flipAnimations[rowIndex]?.[0]?.interpolate({
+                                            inputRange: [0, 0.5, 1],
+                                            outputRange: ['0deg', '90deg', '180deg'],
+                                        }) || '0deg'
+                                    }] : []
+                                }
+                            ]}
+                        >
+                            <Animated.Text style={[
+                                styles.guessText,
+                                getGuessColor(rowIndex, 'book') !== "#fff" && { color: "#fff" },
+                                rowIndex < currentRow || isRevealing ? {
+                                    transform: [{
+                                        rotateX: flipAnimations[rowIndex]?.[0]?.interpolate({
+                                            inputRange: [0, 0.5, 1],
+                                            outputRange: ['0deg', '-90deg', '-180deg'],
+                                        }) || '0deg'
+                                    }]
+                                } : {}
+                            ]}>
+                                {guess.book || ""}
+                            </Animated.Text>
+                        </Animated.View>
                     </TouchableOpacity>
 
-                    {/* Chapter boxes (2 digits) */}
+                    {/* Chapter boxes (2 digits) with animation */}
                     <View style={styles.doubleDigitContainer}>
                         {chapterDigits.map((digit, index) => (
-                            <View
+                            <Animated.View
                                 key={`chapter-${index}`}
                                 style={[
                                     styles.digitBox,
                                     isCurrentRow && !gameCompleted && currentInputType === 'chapter' ? styles.highlightedBox : null,
-                                    { backgroundColor: getGuessColor(rowIndex, 'chapter', index) }
+                                    {
+                                        transform: rowIndex < currentRow || isRevealing ? [{
+                                            rotateX: flipAnimations[rowIndex]?.[index + 1]?.interpolate({
+                                                inputRange: [0, 0.5, 1],
+                                                outputRange: ['0deg', '90deg', '180deg'],
+                                            }) || '0deg'
+                                        }] : []
+                                    }
                                 ]}
                             >
-                                <Text style={[
-                                    styles.digitText,
-                                    getGuessColor(rowIndex, 'chapter', index) !== "#fff" && { color: "#fff" }
-                                ]}>
-                                    {digit}
-                                </Text>
-                            </View>
+                                <Animated.View
+                                    style={[
+                                        styles.animatedInnerBox,
+                                        {
+                                            backgroundColor: getGuessColor(rowIndex, 'chapter', index),
+                                        }
+                                    ]}
+                                >
+                                    <Animated.Text style={[
+                                        styles.digitText,
+                                        getGuessColor(rowIndex, 'chapter', index) !== "#fff" && { color: "#fff" },
+                                        rowIndex < currentRow || isRevealing ? {
+                                            transform: [{
+                                                rotateX: flipAnimations[rowIndex]?.[index + 1]?.interpolate({
+                                                    inputRange: [0, 0.5, 1],
+                                                    outputRange: ['0deg', '-90deg', '-180deg'],
+                                                }) || '0deg'
+                                            }]
+                                        } : {}
+                                    ]}>
+                                        {digit}
+                                    </Animated.Text>
+                                </Animated.View>
+                            </Animated.View>
                         ))}
                     </View>
 
                     {/* Fixed colon */}
                     <Text style={styles.fixedColon}>:</Text>
 
-                    {/* Verse boxes (2 digits) */}
+                    {/* Verse boxes (2 digits) with animation */}
                     <View style={styles.doubleDigitContainer}>
                         {verseDigits.map((digit, index) => (
-                            <View
+                            <Animated.View
                                 key={`verse-${index}`}
                                 style={[
                                     styles.digitBox,
                                     isCurrentRow && !gameCompleted && currentInputType === 'verse' ? styles.highlightedBox : null,
-                                    { backgroundColor: getGuessColor(rowIndex, 'verse', index) }
+                                    {
+                                        transform: rowIndex < currentRow || isRevealing ? [{
+                                            rotateX: flipAnimations[rowIndex]?.[index + 3]?.interpolate({
+                                                inputRange: [0, 0.5, 1],
+                                                outputRange: ['0deg', '90deg', '180deg'],
+                                            }) || '0deg'
+                                        }] : []
+                                    }
                                 ]}
                             >
-                                <Text style={[
-                                    styles.digitText,
-                                    getGuessColor(rowIndex, 'verse', index) !== "#fff" && { color: "#fff" }
-                                ]}>
-                                    {digit}
-                                </Text>
-                            </View>
+                                <Animated.View
+                                    style={[
+                                        styles.animatedInnerBox,
+                                        {
+                                            backgroundColor: getGuessColor(rowIndex, 'verse', index),
+                                        }
+                                    ]}
+                                >
+                                    <Animated.Text style={[
+                                        styles.digitText,
+                                        getGuessColor(rowIndex, 'verse', index) !== "#fff" && { color: "#fff" },
+                                        rowIndex < currentRow || isRevealing ? {
+                                            transform: [{
+                                                rotateX: flipAnimations[rowIndex]?.[index + 3]?.interpolate({
+                                                    inputRange: [0, 0.5, 1],
+                                                    outputRange: ['0deg', '-90deg', '-180deg'],
+                                                }) || '0deg'
+                                            }]
+                                        } : {}
+                                    ]}>
+                                        {digit}
+                                    </Animated.Text>
+                                </Animated.View>
+                            </Animated.View>
                         ))}
                     </View>
                 </View>
@@ -579,21 +655,33 @@ export default function Versele() {
         // Remember whether this is a completed game for after animation
         const isGameComplete = gameCompleted;
 
+        // Start with no boxes revealed (white)
+        setRevealedBoxes(-1);
+
+        // Brief pause before starting animation
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Animate the reveal of the current guess boxes one by one
-        for (let i = 0; i < 5 && i < flipAnimations[rowIndex].length; i++) {
+        // We have 5 boxes total: book (1), chapter (2), verse (2)
+        for (let i = 0; i < 5; i++) {
             if (flipAnimations[rowIndex][i]) {
+                // Set which box is being revealed so it can show the right color
+                setRevealedBoxes(i);
+
+                // Start the flip animation
                 Animated.timing(flipAnimations[rowIndex][i], {
                     toValue: 1,
                     duration: 300,
                     useNativeDriver: false,
                 }).start();
-            }
 
-            setRevealedBoxes(i);
-            await new Promise(resolve => setTimeout(resolve, 300));
+                // Wait for animation to complete before moving to next box
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
         }
 
-        // After animation completes, only reset revealedBoxes if game isn't over
+        // After animation completes, reset revealedBoxes if not a completed game
+        // For completed games, keep the last revealed state
         if (!isGameComplete) {
             setRevealedBoxes(-1);
         }
@@ -653,9 +741,18 @@ export default function Versele() {
             chapterStr === targetChapter &&
             verseStr === targetVerse;
 
+        // Reset animation values for this row before starting new animations
+        if (flipAnimations[currentRow]) {
+            flipAnimations[currentRow].forEach(anim => {
+                if (anim) anim.setValue(0);
+            });
+        }
+
         if (isCorrect) {
-            revealRow(currentRow);
+            // Set game as completed before animation to prevent further input
             setGameCompleted(true);
+            revealRow(currentRow);
+
             setTimeout(() => {
                 Alert.alert(
                     "Congratulations!",
@@ -684,8 +781,10 @@ export default function Versele() {
 
         // Check if this was the last guess
         if (currentRow === MAX_GUESSES - 1) {
-            revealRow(currentRow);
+            // Set game as completed before animation to prevent further input
             setGameCompleted(true);
+            revealRow(currentRow);
+
             setTimeout(() => {
                 Alert.alert(
                     "Game Over",
@@ -712,9 +811,13 @@ export default function Versele() {
             return;
         }
 
-        // Move to next row
+        // For non-winning guesses, animate the reveal first
         revealRow(currentRow);
-        setCurrentRow(currentRow + 1);
+
+        // Then move to next row (after animation completes)
+        setTimeout(() => {
+            setCurrentRow(currentRow + 1);
+        }, 1500);
     };
 
     // Add function to track number key states based on previous guesses
@@ -1050,6 +1153,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff",
         borderRadius: 4,
         marginRight: 5,
+        overflow: 'hidden',
     },
     digitBox: {
         width: 30,
@@ -1061,6 +1165,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff",
         borderRadius: 4,
         marginHorizontal: 2,
+        overflow: 'hidden',
     },
     guessText: {
         fontSize: 14,
@@ -1266,5 +1371,12 @@ const styles = StyleSheet.create({
     highlightedBox: {
         borderColor: '#e67e22',
         borderWidth: 3,
+    },
+    animatedInnerBox: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 2,
     },
 }); 
