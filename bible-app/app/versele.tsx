@@ -242,7 +242,10 @@ export default function Versele() {
                 const versePart = parts.length > 1 ? parts[1] : "";
 
                 if (chapterPart.length > 0 && versePart.length > 0 && currentGuess.book) {
-                    checkGuess(currentGuess);
+                    // Prevent double guess submission by disabling if already at max guesses
+                    if (currentRow < MAX_GUESSES) {
+                        checkGuess(currentGuess);
+                    }
 
                     // After submitting, prepare for the next row if game isn't over
                     if (currentRow < MAX_GUESSES - 1 && !gameCompleted) {
@@ -304,7 +307,7 @@ export default function Versele() {
                             if (currentRow < MAX_GUESSES - 1 && !gameCompleted) {
                                 setCurrentInputType('chapter');
                             }
-                        }, 500); // Small delay to show the input
+                        }, 500);
                     }
                 }
             }
@@ -447,6 +450,11 @@ export default function Versele() {
     };
 
     const renderGrid = () => {
+        // If there's no animations set up yet, return an empty fragment
+        if (!flipAnimations || flipAnimations.length === 0) {
+            return null;
+        }
+
         return guesses.map((guess, rowIndex) => {
             // Split chapter:verse for display
             let chapterText = "";
@@ -465,20 +473,23 @@ export default function Versele() {
             // Only allow interaction with the current row
             const isCurrentRow = rowIndex === currentRow;
 
-            // Handle completed game case - should show colors for the final row
-            const isCompletedFinalRow = gameCompleted && rowIndex === Math.min(currentRow, MAX_GUESSES - 1);
-
             // Calculate if this is a row being animated
             const isAnimatingRow = rowIndex === currentRow && revealedBoxes >= 0;
 
+            // Handle completed game case - should show colors for the final row
+            const isCompletedFinalRow = gameCompleted && rowIndex === currentRow;
+
+            // Determine if this row should show colors permanently
+            // Either previously completed rows OR the final row in a completed game
+            const shouldShowFinalColors = rowIndex < currentRow || isCompletedFinalRow;
+
             return (
                 <View key={rowIndex} style={styles.row}>
-                    {/* Book - follows Wordle letterBox pattern precisely */}
+                    {/* Book box */}
                     <Animated.View
                         style={[
                             styles.bookBox,
                             {
-                                // Only change background color when animation passes midpoint
                                 backgroundColor: "#fff",
                             }
                         ]}
@@ -490,14 +501,16 @@ export default function Versele() {
                                 justifyContent: 'center',
                                 alignItems: 'center',
                                 transform: [{
-                                    rotateX: flipAnimations[rowIndex]?.[0]?.interpolate({
-                                        inputRange: [0, 0.5, 1],
-                                        outputRange: ['0deg', '90deg', '0deg'],
-                                    }) || '0deg'
+                                    rotateX: shouldShowFinalColors ? '0deg' : (
+                                        flipAnimations[rowIndex]?.[0]?.interpolate({
+                                            inputRange: [0, 0.5, 1],
+                                            outputRange: ['0deg', '90deg', '0deg'],
+                                        }) || '0deg'
+                                    )
                                 }]
                             }}
                         >
-                            {/* Front side - shown before animation midpoint */}
+                            {/* Front side */}
                             <Animated.View
                                 style={{
                                     backfaceVisibility: 'hidden',
@@ -507,10 +520,12 @@ export default function Versele() {
                                     justifyContent: 'center',
                                     alignItems: 'center',
                                     backgroundColor: "#fff",
-                                    opacity: flipAnimations[rowIndex]?.[0]?.interpolate({
-                                        inputRange: [0, 0.4999, 0.5, 1],
-                                        outputRange: [1, 1, 0, 0],
-                                    }) || 1
+                                    opacity: shouldShowFinalColors ? 0 : (
+                                        flipAnimations[rowIndex]?.[0]?.interpolate({
+                                            inputRange: [0, 0.4999, 0.5, 1],
+                                            outputRange: [1, 1, 0, 0],
+                                        }) || 1
+                                    )
                                 }}
                             >
                                 {isCurrentRow && !gameCompleted ? (
@@ -535,7 +550,7 @@ export default function Versele() {
                                 )}
                             </Animated.View>
 
-                            {/* Back side - shown after animation midpoint */}
+                            {/* Back side */}
                             <Animated.View
                                 style={{
                                     backfaceVisibility: 'hidden',
@@ -544,13 +559,15 @@ export default function Versele() {
                                     position: 'absolute',
                                     justifyContent: 'center',
                                     alignItems: 'center',
-                                    backgroundColor: rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && 0 <= revealedBoxes)
+                                    backgroundColor: (rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && 0 <= revealedBoxes))
                                         ? getGuessColor(rowIndex, 'book')
                                         : "#fff",
-                                    opacity: flipAnimations[rowIndex]?.[0]?.interpolate({
-                                        inputRange: [0, 0.4999, 0.5, 1],
-                                        outputRange: [0, 0, 1, 1],
-                                    }) || 0
+                                    opacity: shouldShowFinalColors ? 1 : (
+                                        flipAnimations[rowIndex]?.[0]?.interpolate({
+                                            inputRange: [0, 0.4999, 0.5, 1],
+                                            outputRange: [0, 0, 1, 1],
+                                        }) || 0
+                                    )
                                 }}
                             >
                                 <Text
@@ -585,10 +602,12 @@ export default function Versele() {
                                         justifyContent: 'center',
                                         alignItems: 'center',
                                         transform: [{
-                                            rotateX: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
-                                                inputRange: [0, 0.5, 1],
-                                                outputRange: ['0deg', '90deg', '0deg'],
-                                            }) || '0deg'
+                                            rotateX: shouldShowFinalColors ? '0deg' : (
+                                                flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                    inputRange: [0, 0.5, 1],
+                                                    outputRange: ['0deg', '90deg', '0deg'],
+                                                }) || '0deg'
+                                            )
                                         }]
                                     }}
                                 >
@@ -602,10 +621,12 @@ export default function Versele() {
                                             justifyContent: 'center',
                                             alignItems: 'center',
                                             backgroundColor: "#fff",
-                                            opacity: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
-                                                inputRange: [0, 0.4999, 0.5, 1],
-                                                outputRange: [1, 1, 0, 0],
-                                            }) || 1
+                                            opacity: shouldShowFinalColors ? 0 : (
+                                                flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                    inputRange: [0, 0.4999, 0.5, 1],
+                                                    outputRange: [1, 1, 0, 0],
+                                                }) || 1
+                                            )
                                         }}
                                     >
                                         <Text style={styles.digitText}>
@@ -622,13 +643,15 @@ export default function Versele() {
                                             position: 'absolute',
                                             justifyContent: 'center',
                                             alignItems: 'center',
-                                            backgroundColor: rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && boxIndex <= revealedBoxes)
+                                            backgroundColor: (rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && boxIndex <= revealedBoxes))
                                                 ? getGuessColor(rowIndex, 'chapter', index)
                                                 : "#fff",
-                                            opacity: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
-                                                inputRange: [0, 0.4999, 0.5, 1],
-                                                outputRange: [0, 0, 1, 1],
-                                            }) || 0
+                                            opacity: shouldShowFinalColors ? 1 : (
+                                                flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                    inputRange: [0, 0.4999, 0.5, 1],
+                                                    outputRange: [0, 0, 1, 1],
+                                                }) || 0
+                                            )
                                         }}
                                     >
                                         <Text
@@ -667,10 +690,12 @@ export default function Versele() {
                                         justifyContent: 'center',
                                         alignItems: 'center',
                                         transform: [{
-                                            rotateX: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
-                                                inputRange: [0, 0.5, 1],
-                                                outputRange: ['0deg', '90deg', '0deg'],
-                                            }) || '0deg'
+                                            rotateX: shouldShowFinalColors ? '0deg' : (
+                                                flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                    inputRange: [0, 0.5, 1],
+                                                    outputRange: ['0deg', '90deg', '0deg'],
+                                                }) || '0deg'
+                                            )
                                         }]
                                     }}
                                 >
@@ -684,10 +709,12 @@ export default function Versele() {
                                             justifyContent: 'center',
                                             alignItems: 'center',
                                             backgroundColor: "#fff",
-                                            opacity: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
-                                                inputRange: [0, 0.4999, 0.5, 1],
-                                                outputRange: [1, 1, 0, 0],
-                                            }) || 1
+                                            opacity: shouldShowFinalColors ? 0 : (
+                                                flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                    inputRange: [0, 0.4999, 0.5, 1],
+                                                    outputRange: [1, 1, 0, 0],
+                                                }) || 1
+                                            )
                                         }}
                                     >
                                         <Text style={styles.digitText}>
@@ -704,13 +731,15 @@ export default function Versele() {
                                             position: 'absolute',
                                             justifyContent: 'center',
                                             alignItems: 'center',
-                                            backgroundColor: rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && boxIndex <= revealedBoxes)
+                                            backgroundColor: (rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && boxIndex <= revealedBoxes))
                                                 ? getGuessColor(rowIndex, 'verse', index)
                                                 : "#fff",
-                                            opacity: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
-                                                inputRange: [0, 0.4999, 0.5, 1],
-                                                outputRange: [0, 0, 1, 1],
-                                            }) || 0
+                                            opacity: shouldShowFinalColors ? 1 : (
+                                                flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                    inputRange: [0, 0.4999, 0.5, 1],
+                                                    outputRange: [0, 0, 1, 1],
+                                                }) || 0
+                                            )
                                         }}
                                     >
                                         <Text
@@ -796,15 +825,34 @@ export default function Versele() {
             if (savedState) {
                 const gameState = JSON.parse(savedState);
 
-                // Only consider it a "loaded state" if the game wasn't completed
-                if (!gameState.gameCompleted) {
-                    setGuesses(gameState.guesses);
-                    setCurrentRow(gameState.currentRow);
-                    setCurrentVerse(gameState.currentVerse);
-                    setGameCompleted(false);
-                    setIsLoading(false);
-                    return true;  // Yes, we loaded an active game
+                // Load both completed and non-completed games to show state
+                setGuesses(gameState.guesses);
+                setCurrentRow(gameState.currentRow);
+                setCurrentVerse(gameState.currentVerse);
+                setGameCompleted(gameState.gameCompleted);
+                setIsLoading(false);
+
+                // If the game was completed, make sure to reveal all boxes
+                // This is important to ensure completed games show their colors
+                if (gameState.gameCompleted) {
+                    // A short timeout to ensure animations are properly initialized
+                    setTimeout(() => {
+                        // Forcing all boxes to show their colors by setting each row's state
+                        for (let i = 0; i <= gameState.currentRow; i++) {
+                            if (i < gameState.currentRow) {
+                                // For previously completed rows, just make sure they have coloring
+                                const rowBoxes = flipAnimations[i];
+                                if (rowBoxes) {
+                                    rowBoxes.forEach(anim => {
+                                        if (anim) anim.setValue(1); // Force to completed state
+                                    });
+                                }
+                            }
+                        }
+                    }, 100);
                 }
+
+                return true;
             }
             return false;  // No saved state
         } catch (error) {
@@ -827,18 +875,25 @@ export default function Versele() {
             chapterStr === targetChapter &&
             verseStr === targetVerse;
 
-        // Set game as completed if this is the last row or the answer is correct
-        if (isCorrect || currentRow === MAX_GUESSES - 1) {
-            setGameCompleted(true);
+        // Prevent duplicate executions by safeguarding against consecutive guess checks
+        if (currentRow >= MAX_GUESSES) {
+            console.log("Already processed final row, ignoring duplicate guess check");
+            return;
         }
 
-        // Always do the animation first, then determine game outcome
+        // Do animation first, then update game state
         revealRow(currentRow).then(() => {
-            // Make sure the boxes stay colored after animation
-            setRevealedBoxes(-1);
+            // Now set game as completed after animation
+            if (isCorrect || currentRow === MAX_GUESSES - 1) {
+                setGameCompleted(true);
+            }
 
-            if (isCorrect) {
-                setTimeout(() => {
+            // Important: Wait a little bit to ensure animations finish completely
+            setTimeout(() => {
+                // Reset revealedBoxes state to ensure proper final state rendering
+                setRevealedBoxes(-1);
+
+                if (isCorrect) {
                     Alert.alert(
                         "Congratulations!",
                         "You guessed the verse reference correctly!",
@@ -860,13 +915,15 @@ export default function Versele() {
                             }
                         ]
                     );
-                }, 500);
-                return;
-            }
+                    return;
+                }
 
-            // Check if this was the last guess
-            if (currentRow === MAX_GUESSES - 1) {
-                setTimeout(() => {
+                // Check if this was the last guess
+                if (currentRow === MAX_GUESSES - 1) {
+                    // Increment currentRow immediately to prevent double alerts
+                    // This way the condition won't be true if somehow checkGuess is called twice
+                    setCurrentRow(currentRow + 1);
+
                     Alert.alert(
                         "Game Over",
                         `The correct reference was: ${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}`,
@@ -888,13 +945,13 @@ export default function Versele() {
                             }
                         ]
                     );
-                }, 500);
-                return;
-            }
+                    return;
+                }
 
-            // Move to next row for non-winning guesses
-            setCurrentRow(currentRow + 1);
-            setCurrentInputType('chapter');
+                // Move to next row for non-winning guesses
+                setCurrentRow(currentRow + 1);
+                setCurrentInputType('chapter');
+            }, 200);
         });
     };
 
@@ -1062,15 +1119,6 @@ export default function Versele() {
                 <Text style={styles.verseText}>
                     {currentVerse.text || "Loading verse..."}
                 </Text>
-
-                {/* Debug info - only visible in development */}
-                {__DEV__ && (
-                    <View style={styles.debugInfo}>
-                        <Text style={styles.debugInfoText}>
-                            Target: {currentVerse.book} {currentVerse.chapter}:{currentVerse.verse}
-                        </Text>
-                    </View>
-                )}
             </View>
 
             <Text style={styles.subtitle}>Guess the Bible Reference</Text>
@@ -1432,30 +1480,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#2c1810',
         marginTop: 8,
-    },
-    debugBox: {
-        padding: 8,
-        backgroundColor: '#000',
-        borderRadius: 4,
-        marginBottom: 10,
-        width: '100%',
-    },
-    debugInfo: {
-        marginTop: 8,
-        padding: 4,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        borderRadius: 4,
-    },
-    debugText: {
-        color: '#0f0',
-        fontSize: 10,
-        fontFamily: 'monospace',
-    },
-    debugInfoText: {
-        color: '#00ff00',
-        fontSize: 12,
-        fontFamily: 'monospace',
-        textAlign: 'center',
     },
     currentInputContainer: {
         marginBottom: 10,
