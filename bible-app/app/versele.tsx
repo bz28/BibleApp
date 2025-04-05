@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated, Modal, FlatList, ScrollView } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated, Modal, FlatList, ScrollView, Easing } from "react-native";
 import { initDatabase, getRandomVerseReference } from './database/database';
 import { VerseReference } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -103,7 +103,7 @@ export default function Versele() {
 
     useEffect(() => {
         if (currentVerse) {
-            // Initialize flip animations for all MAX_GUESSES rows, 5 boxes per row
+            // Initialize flip animations for all MAX_GUESSES rows, 5 boxes per row (1 book + 2 chapter + 2 verse)
             setFlipAnimations(
                 Array(MAX_GUESSES).fill(null).map(() =>
                     Array(5).fill(null).map(() => new Animated.Value(0))
@@ -451,13 +451,11 @@ export default function Versele() {
             // Split chapter:verse for display
             let chapterText = "";
             let verseText = "";
-            let hasColon = false;
 
             if (guess.chapterVerse) {
                 const parts = guess.chapterVerse.split(":");
                 chapterText = parts[0] || "";
                 verseText = parts[1] || "";
-                hasColon = guess.chapterVerse.includes(":");
             }
 
             // Pad chapter and verse with empty space to ensure 2 digits
@@ -470,147 +468,264 @@ export default function Versele() {
             // Handle completed game case - should show colors for the final row
             const isCompletedFinalRow = gameCompleted && rowIndex === Math.min(currentRow, MAX_GUESSES - 1);
 
+            // Calculate if this is a row being animated
+            const isAnimatingRow = rowIndex === currentRow && revealedBoxes >= 0;
+
             return (
                 <View key={rowIndex} style={styles.row}>
-                    {/* Book box with animation */}
-                    <TouchableOpacity
-                        disabled={!isCurrentRow || gameCompleted}
-                        onPress={() => {
-                            setShowBookModal(true);
-                        }}
+                    {/* Book - follows Wordle letterBox pattern precisely */}
+                    <Animated.View
                         style={[
-                            isCurrentRow && !gameCompleted && !guess.book ? styles.highlightedBox : null,
-                            styles.bookBoxContainer
+                            styles.bookBox,
+                            {
+                                // Only change background color when animation passes midpoint
+                                backgroundColor: "#fff",
+                            }
                         ]}
                     >
                         <Animated.View
-                            style={[
-                                styles.bookBox,
-                                {
-                                    backgroundColor: isCurrentRow && revealedBoxes >= 0 && 0 <= revealedBoxes
-                                        ? getGuessColor(rowIndex, 'book')
-                                        : rowIndex < currentRow || isCompletedFinalRow
-                                            ? getGuessColor(rowIndex, 'book')
-                                            : "#fff",
-                                    transform: [{
-                                        rotateX: flipAnimations[rowIndex]?.[0]?.interpolate({
-                                            inputRange: [0, 0.5, 1],
-                                            outputRange: ['0deg', '90deg', '180deg'],
-                                        }) || '0deg'
-                                    }]
-                                }
-                            ]}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                transform: [{
+                                    rotateX: flipAnimations[rowIndex]?.[0]?.interpolate({
+                                        inputRange: [0, 0.5, 1],
+                                        outputRange: ['0deg', '90deg', '0deg'],
+                                    }) || '0deg'
+                                }]
+                            }}
                         >
-                            <Animated.Text
-                                style={[
-                                    styles.guessText,
-                                    (getGuessColor(rowIndex, 'book') !== "#fff" && (rowIndex < currentRow || isCompletedFinalRow)) ? { color: "#fff" } : {},
-                                    isCurrentRow && revealedBoxes >= 0 && 0 <= revealedBoxes ? { color: "#fff" } : {},
-                                    {
-                                        transform: [{
-                                            rotateX: flipAnimations[rowIndex]?.[0]?.interpolate({
-                                                inputRange: [0, 0.5, 1],
-                                                outputRange: ['0deg', '-90deg', '-180deg'],
-                                            }) || '0deg'
-                                        }]
-                                    }
-                                ]}
+                            {/* Front side - shown before animation midpoint */}
+                            <Animated.View
+                                style={{
+                                    backfaceVisibility: 'hidden',
+                                    width: '100%',
+                                    height: '100%',
+                                    position: 'absolute',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    backgroundColor: "#fff",
+                                    opacity: flipAnimations[rowIndex]?.[0]?.interpolate({
+                                        inputRange: [0, 0.4999, 0.5, 1],
+                                        outputRange: [1, 1, 0, 0],
+                                    }) || 1
+                                }}
                             >
-                                {guess.book || ""}
-                            </Animated.Text>
-                        </Animated.View>
-                    </TouchableOpacity>
+                                {isCurrentRow && !gameCompleted ? (
+                                    <TouchableOpacity
+                                        style={styles.boxTouchable}
+                                        onPress={() => setShowBookModal(true)}
+                                    >
+                                        <Text
+                                            style={styles.bookText}
+                                            numberOfLines={1}
+                                        >
+                                            {guess.book || ""}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <Text
+                                        style={styles.bookText}
+                                        numberOfLines={1}
+                                    >
+                                        {guess.book || ""}
+                                    </Text>
+                                )}
+                            </Animated.View>
 
-                    {/* Chapter boxes (2 digits) */}
-                    <View style={styles.doubleDigitContainer}>
-                        {chapterDigits.map((digit, index) => (
+                            {/* Back side - shown after animation midpoint */}
+                            <Animated.View
+                                style={{
+                                    backfaceVisibility: 'hidden',
+                                    width: '100%',
+                                    height: '100%',
+                                    position: 'absolute',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    backgroundColor: rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && 0 <= revealedBoxes)
+                                        ? getGuessColor(rowIndex, 'book')
+                                        : "#fff",
+                                    opacity: flipAnimations[rowIndex]?.[0]?.interpolate({
+                                        inputRange: [0, 0.4999, 0.5, 1],
+                                        outputRange: [0, 0, 1, 1],
+                                    }) || 0
+                                }}
+                            >
+                                <Text
+                                    style={[
+                                        styles.bookText,
+                                        { color: '#fff' }
+                                    ]}
+                                    numberOfLines={1}
+                                >
+                                    {guess.book || ""}
+                                </Text>
+                            </Animated.View>
+                        </Animated.View>
+                    </Animated.View>
+
+                    {/* Chapter digits */}
+                    {chapterDigits.map((digit, index) => {
+                        const boxIndex = index + 1; // 1, 2 for chapter digits
+
+                        return (
                             <Animated.View
                                 key={`chapter-${index}`}
                                 style={[
                                     styles.digitBox,
-                                    isCurrentRow && !gameCompleted && currentInputType === 'chapter' ? styles.highlightedBox : null,
-                                    {
-                                        backgroundColor: isCurrentRow && revealedBoxes >= 0 && (index + 1) <= revealedBoxes
-                                            ? getGuessColor(rowIndex, 'chapter', index)
-                                            : rowIndex < currentRow || isCompletedFinalRow
-                                                ? getGuessColor(rowIndex, 'chapter', index)
-                                                : "#fff",
-                                        transform: [{
-                                            rotateX: flipAnimations[rowIndex]?.[index + 1]?.interpolate({
-                                                inputRange: [0, 0.5, 1],
-                                                outputRange: ['0deg', '90deg', '180deg'],
-                                            }) || '0deg'
-                                        }]
-                                    }
+                                    isCurrentRow && !gameCompleted && currentInputType === 'chapter' && { borderColor: "#e67e22" },
                                 ]}
                             >
-                                <Animated.Text
-                                    style={[
-                                        styles.digitText,
-                                        (getGuessColor(rowIndex, 'chapter', index) !== "#fff" && (rowIndex < currentRow || isCompletedFinalRow)) ? { color: "#fff" } : {},
-                                        isCurrentRow && revealedBoxes >= 0 && (index + 1) <= revealedBoxes ? { color: "#fff" } : {},
-                                        {
-                                            transform: [{
-                                                rotateX: flipAnimations[rowIndex]?.[index + 1]?.interpolate({
-                                                    inputRange: [0, 0.5, 1],
-                                                    outputRange: ['0deg', '-90deg', '-180deg'],
-                                                }) || '0deg'
-                                            }]
-                                        }
-                                    ]}
+                                <Animated.View
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        transform: [{
+                                            rotateX: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                inputRange: [0, 0.5, 1],
+                                                outputRange: ['0deg', '90deg', '0deg'],
+                                            }) || '0deg'
+                                        }]
+                                    }}
                                 >
-                                    {digit === ' ' ? '' : digit}
-                                </Animated.Text>
-                            </Animated.View>
-                        ))}
-                    </View>
+                                    {/* Front side */}
+                                    <Animated.View
+                                        style={{
+                                            backfaceVisibility: 'hidden',
+                                            width: '100%',
+                                            height: '100%',
+                                            position: 'absolute',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            backgroundColor: "#fff",
+                                            opacity: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                inputRange: [0, 0.4999, 0.5, 1],
+                                                outputRange: [1, 1, 0, 0],
+                                            }) || 1
+                                        }}
+                                    >
+                                        <Text style={styles.digitText}>
+                                            {digit === ' ' ? '' : digit}
+                                        </Text>
+                                    </Animated.View>
 
-                    {/* Fixed colon */}
+                                    {/* Back side */}
+                                    <Animated.View
+                                        style={{
+                                            backfaceVisibility: 'hidden',
+                                            width: '100%',
+                                            height: '100%',
+                                            position: 'absolute',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            backgroundColor: rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && boxIndex <= revealedBoxes)
+                                                ? getGuessColor(rowIndex, 'chapter', index)
+                                                : "#fff",
+                                            opacity: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                inputRange: [0, 0.4999, 0.5, 1],
+                                                outputRange: [0, 0, 1, 1],
+                                            }) || 0
+                                        }}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.digitText,
+                                                { color: '#fff' }
+                                            ]}
+                                        >
+                                            {digit === ' ' ? '' : digit}
+                                        </Text>
+                                    </Animated.View>
+                                </Animated.View>
+                            </Animated.View>
+                        );
+                    })}
+
+                    {/* Colon separator */}
                     <Text style={styles.fixedColon}>:</Text>
 
-                    {/* Verse boxes (2 digits) */}
-                    <View style={styles.doubleDigitContainer}>
-                        {verseDigits.map((digit, index) => (
+                    {/* Verse digits */}
+                    {verseDigits.map((digit, index) => {
+                        const boxIndex = index + 3; // 3, 4 for verse digits
+
+                        return (
                             <Animated.View
                                 key={`verse-${index}`}
                                 style={[
                                     styles.digitBox,
-                                    isCurrentRow && !gameCompleted && currentInputType === 'verse' ? styles.highlightedBox : null,
-                                    {
-                                        backgroundColor: isCurrentRow && revealedBoxes >= 0 && (index + 3) <= revealedBoxes
-                                            ? getGuessColor(rowIndex, 'verse', index)
-                                            : rowIndex < currentRow || isCompletedFinalRow
-                                                ? getGuessColor(rowIndex, 'verse', index)
-                                                : "#fff",
-                                        transform: [{
-                                            rotateX: flipAnimations[rowIndex]?.[index + 3]?.interpolate({
-                                                inputRange: [0, 0.5, 1],
-                                                outputRange: ['0deg', '90deg', '180deg'],
-                                            }) || '0deg'
-                                        }]
-                                    }
+                                    isCurrentRow && !gameCompleted && currentInputType === 'verse' && { borderColor: "#e67e22" },
                                 ]}
                             >
-                                <Animated.Text
-                                    style={[
-                                        styles.digitText,
-                                        (getGuessColor(rowIndex, 'verse', index) !== "#fff" && (rowIndex < currentRow || isCompletedFinalRow)) ? { color: "#fff" } : {},
-                                        isCurrentRow && revealedBoxes >= 0 && (index + 3) <= revealedBoxes ? { color: "#fff" } : {},
-                                        {
-                                            transform: [{
-                                                rotateX: flipAnimations[rowIndex]?.[index + 3]?.interpolate({
-                                                    inputRange: [0, 0.5, 1],
-                                                    outputRange: ['0deg', '-90deg', '-180deg'],
-                                                }) || '0deg'
-                                            }]
-                                        }
-                                    ]}
+                                <Animated.View
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        transform: [{
+                                            rotateX: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                inputRange: [0, 0.5, 1],
+                                                outputRange: ['0deg', '90deg', '0deg'],
+                                            }) || '0deg'
+                                        }]
+                                    }}
                                 >
-                                    {digit === ' ' ? '' : digit}
-                                </Animated.Text>
+                                    {/* Front side */}
+                                    <Animated.View
+                                        style={{
+                                            backfaceVisibility: 'hidden',
+                                            width: '100%',
+                                            height: '100%',
+                                            position: 'absolute',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            backgroundColor: "#fff",
+                                            opacity: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                inputRange: [0, 0.4999, 0.5, 1],
+                                                outputRange: [1, 1, 0, 0],
+                                            }) || 1
+                                        }}
+                                    >
+                                        <Text style={styles.digitText}>
+                                            {digit === ' ' ? '' : digit}
+                                        </Text>
+                                    </Animated.View>
+
+                                    {/* Back side */}
+                                    <Animated.View
+                                        style={{
+                                            backfaceVisibility: 'hidden',
+                                            width: '100%',
+                                            height: '100%',
+                                            position: 'absolute',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            backgroundColor: rowIndex < currentRow || isCompletedFinalRow || (isAnimatingRow && boxIndex <= revealedBoxes)
+                                                ? getGuessColor(rowIndex, 'verse', index)
+                                                : "#fff",
+                                            opacity: flipAnimations[rowIndex]?.[boxIndex]?.interpolate({
+                                                inputRange: [0, 0.4999, 0.5, 1],
+                                                outputRange: [0, 0, 1, 1],
+                                            }) || 0
+                                        }}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.digitText,
+                                                { color: '#fff' }
+                                            ]}
+                                        >
+                                            {digit === ' ' ? '' : digit}
+                                        </Text>
+                                    </Animated.View>
+                                </Animated.View>
                             </Animated.View>
-                        ))}
-                    </View>
+                        );
+                    })}
                 </View>
             );
         });
@@ -633,20 +748,28 @@ export default function Versele() {
             // We have 5 boxes total: book (1), chapter (2), verse (2)
             for (let i = 0; i < 5; i++) {
                 if (flipAnimations[rowIndex][i]) {
-                    // Start the flip animation
+                    setRevealedBoxes(i);
+
+                    // Start the flip animation with completion callback
                     Animated.timing(flipAnimations[rowIndex][i], {
                         toValue: 1,
-                        duration: 300,
-                        useNativeDriver: false,
+                        duration: 500, // Slightly longer for smoother animation
+                        useNativeDriver: true,
+                        easing: Easing.inOut(Easing.cubic) // Smoother easing
                     }).start();
 
-                    setRevealedBoxes(i);
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    // Wait for animation to complete before proceeding to next box
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
             }
 
-            setRevealedBoxes(-1);
-            resolve();
+            // Ensure all boxes are revealed
+            setRevealedBoxes(4); // Set to the last box index to ensure all are shown
+
+            // Add a short delay before resolving
+            setTimeout(() => {
+                resolve();
+            }, 100);
         });
     };
 
@@ -711,6 +834,9 @@ export default function Versele() {
 
         // Always do the animation first, then determine game outcome
         revealRow(currentRow).then(() => {
+            // Make sure the boxes stay colored after animation
+            setRevealedBoxes(-1);
+
             if (isCorrect) {
                 setTimeout(() => {
                     Alert.alert(
@@ -949,7 +1075,10 @@ export default function Versele() {
 
             <Text style={styles.subtitle}>Guess the Bible Reference</Text>
 
-            <View style={styles.grid}>{renderGrid()}</View>
+            {/* Wrap grid in a container with proper overflow handling */}
+            <View style={styles.gridContainer}>
+                <View style={styles.grid}>{renderGrid()}</View>
+            </View>
 
             {/* Always show keyboard unless game is completed */}
             {!gameCompleted && (
@@ -1046,6 +1175,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         padding: 15,
         backgroundColor: "#f5e6d3",
+        position: 'relative', // For proper z-index stacking
+        overflow: 'hidden', // Prevent content from extending beyond screen
     },
     centered: {
         justifyContent: 'center',
@@ -1087,46 +1218,70 @@ const styles = StyleSheet.create({
         color: '#5c2c1d',
         fontStyle: 'italic',
     },
+    gridContainer: {
+        width: '100%',
+        overflow: 'visible', // Important - allow animations to extend beyond container
+        minHeight: SCREEN_HEIGHT * 0.3, // Ensure enough height for animations
+        marginBottom: 20,
+        position: 'relative', // Needed for absolute positioning of animations
+        zIndex: 5, // Ensure it's above other elements
+    },
     grid: {
-        marginBottom: 10,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     row: {
         flexDirection: "row",
-        marginBottom: 5,
+        marginBottom: 8,
         justifyContent: "center",
-    },
-    bookBoxContainer: {
-        width: SCREEN_WIDTH * 0.30,
-        height: 40,
-        marginRight: 5,
-        borderRadius: 4,
-        overflow: 'visible', // Important to prevent clipping during animation
+        height: 50, // Fixed height to prevent layout shifts
+        alignItems: 'center',
+        width: '100%',
+        position: 'relative', // For proper child positioning
     },
     bookBox: {
-        width: '100%',
-        height: '100%',
+        width: SCREEN_WIDTH * 0.30,
+        height: 40,
+        margin: 3,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 2,
         borderColor: "#8b4513",
         backgroundColor: "#fff",
         borderRadius: 4,
-        overflow: 'hidden',
+        zIndex: 1, // Ensure it renders above other elements
     },
     digitBox: {
         width: 30,
         height: 40,
+        margin: 3,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 2,
         borderColor: "#8b4513",
         backgroundColor: "#fff",
         borderRadius: 4,
-        marginHorizontal: 2,
-        overflow: 'hidden',
+        zIndex: 1, // Ensure it renders above other elements
     },
-    guessText: {
+    boxTouchable: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative', // For proper child positioning
+    },
+    bookText: {
         fontSize: 14,
+        fontWeight: "700",
+        color: '#1a1a1a',
+        textAlign: 'center',
+        paddingHorizontal: 2,
+        // Text should not extend beyond container
+        width: '100%',
+    },
+    digitText: {
+        fontSize: 16,
         fontWeight: "700",
         color: '#1a1a1a',
     },
@@ -1271,11 +1426,6 @@ const styles = StyleSheet.create({
         color: '#1a1a1a',
         marginHorizontal: 2,
     },
-    digitText: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: '#1a1a1a',
-    },
     referenceText: {
         fontSize: 14,
         fontWeight: "700",
@@ -1306,10 +1456,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontFamily: 'monospace',
         textAlign: 'center',
-    },
-    doubleDigitContainer: {
-        flexDirection: 'row',
-        marginHorizontal: 2,
     },
     currentInputContainer: {
         marginBottom: 10,
