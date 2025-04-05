@@ -22,7 +22,8 @@ const MAX_GUESSES = 5;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
-
+// Add a new type for digit states
+type DigitState = 'correct' | 'present' | 'absent' | 'unused';
 
 export default function Versele() {
     const [guesses, setGuesses] = useState<{ book: string, chapterVerse: string }[]>(
@@ -39,6 +40,7 @@ export default function Versele() {
     const [showBookModal, setShowBookModal] = useState(false);
     const [selectedRowIndex, setSelectedRowIndex] = useState(0);
     const [selectedBoxType, setSelectedBoxType] = useState<'book' | 'chapter' | 'verse' | null>(null);
+    const [currentInputType, setCurrentInputType] = useState<'book' | 'chapter' | 'verse'>('chapter');
 
     useEffect(() => {
         const setupGame = async () => {
@@ -171,31 +173,142 @@ export default function Versele() {
     };
 
     const handleKeyPress = (key: string) => {
-        if (!currentVerse || gameCompleted || !selectedBoxType) return;
+        if (!currentVerse || gameCompleted) return;
+
+        // Book selection is still handled via the modal
+        // We only handle chapter and verse number inputs here
+
+        // Get the current guess
+        const currentGuess = guesses[currentRow];
 
         if (key === "BACKSPACE") {
-            setChapterVerseInput(prev => prev.slice(0, -1));
-        } else if (key === "ENTER") {
-            completeNumberInput();
-        } else if (selectedBoxType === 'chapter') {
-            // Only allow 2 digits for chapter
-            if (chapterVerseInput.length < 2) {
-                setChapterVerseInput(prev => prev + key);
-            }
-        } else if (selectedBoxType === 'verse') {
-            // If we're entering verse directly, make sure we have the colon
-            if (!chapterVerseInput.includes(":")) {
-                const guess = guesses[selectedRowIndex];
-                const chapterPart = guess.chapterVerse ? guess.chapterVerse.split(":")[0] : "";
+            // Handle backspace based on which part we're editing
+            if (currentInputType === 'chapter') {
+                // If we have chapter input, delete the last digit
+                const chapterPart = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":")[0] : "";
+                if (chapterPart.length > 0) {
+                    const newChapterPart = chapterPart.slice(0, -1);
+                    const versePart = currentGuess.chapterVerse && currentGuess.chapterVerse.includes(":")
+                        ? currentGuess.chapterVerse.split(":")[1]
+                        : "";
 
-                if (chapterPart) {
-                    setChapterVerseInput(chapterPart + ":" + key);
+                    const newGuesses = [...guesses];
+                    newGuesses[currentRow] = {
+                        ...newGuesses[currentRow],
+                        chapterVerse: newChapterPart + (versePart ? ":" + versePart : "")
+                    };
+                    setGuesses(newGuesses);
                 }
-            } else {
-                const [, verse] = chapterVerseInput.split(":");
+            } else if (currentInputType === 'verse') {
+                // If we have verse input, delete the last digit
+                const parts = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":") : ["", ""];
+                const chapterPart = parts[0] || "";
+                const versePart = parts.length > 1 ? parts[1] : "";
+
+                if (versePart.length > 0) {
+                    const newVersePart = versePart.slice(0, -1);
+
+                    const newGuesses = [...guesses];
+                    newGuesses[currentRow] = {
+                        ...newGuesses[currentRow],
+                        chapterVerse: chapterPart + ":" + newVersePart
+                    };
+                    setGuesses(newGuesses);
+                }
+                // If there's no verse part left but we have chapter, switch to chapter input
+                else if (chapterPart.length > 0) {
+                    setCurrentInputType('chapter');
+                }
+            }
+        } else if (key === "ENTER") {
+            // If we're entering chapter and have 1-2 digits, move to verse input
+            if (currentInputType === 'chapter') {
+                const chapterPart = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":")[0] : "";
+                if (chapterPart.length > 0) {
+                    setCurrentInputType('verse');
+
+                    // Add the colon if it's not there
+                    if (!currentGuess.chapterVerse.includes(":")) {
+                        const newGuesses = [...guesses];
+                        newGuesses[currentRow] = {
+                            ...newGuesses[currentRow],
+                            chapterVerse: chapterPart + ":"
+                        };
+                        setGuesses(newGuesses);
+                    }
+                }
+            }
+            // If we're entering verse and have both chapter and verse, submit the guess
+            else if (currentInputType === 'verse') {
+                const parts = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":") : ["", ""];
+                const chapterPart = parts[0] || "";
+                const versePart = parts.length > 1 ? parts[1] : "";
+
+                if (chapterPart.length > 0 && versePart.length > 0 && currentGuess.book) {
+                    checkGuess(currentGuess);
+
+                    // After submitting, prepare for the next row if game isn't over
+                    if (currentRow < MAX_GUESSES - 1 && !gameCompleted) {
+                        setCurrentInputType('chapter');
+                    }
+                }
+            }
+        } else if (key >= "0" && key <= "9") {
+            // Handle numeric input
+            if (currentInputType === 'chapter') {
+                const chapterPart = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":")[0] : "";
+                const versePart = currentGuess.chapterVerse && currentGuess.chapterVerse.includes(":")
+                    ? currentGuess.chapterVerse.split(":")[1]
+                    : "";
+
+                // Only allow 2 digits for chapter
+                if (chapterPart.length < 2) {
+                    const newGuesses = [...guesses];
+                    newGuesses[currentRow] = {
+                        ...newGuesses[currentRow],
+                        chapterVerse: chapterPart + key + (versePart ? ":" + versePart : "")
+                    };
+                    setGuesses(newGuesses);
+
+                    // If we've entered 2 digits for chapter, automatically switch to verse
+                    if (chapterPart.length === 1) {
+                        setCurrentInputType('verse');
+
+                        // Add the colon if it's not there
+                        if (!newGuesses[currentRow].chapterVerse.includes(":")) {
+                            newGuesses[currentRow] = {
+                                ...newGuesses[currentRow],
+                                chapterVerse: chapterPart + key + ":"
+                            };
+                            setGuesses(newGuesses);
+                        }
+                    }
+                }
+            } else if (currentInputType === 'verse') {
+                const parts = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":") : ["", ""];
+                const chapterPart = parts[0] || "";
+                const versePart = parts.length > 1 ? parts[1] : "";
+
                 // Only allow 2 digits for verse
-                if (!verse || verse.length < 2) {
-                    setChapterVerseInput(prev => prev + key);
+                if (versePart.length < 2) {
+                    const newGuesses = [...guesses];
+                    newGuesses[currentRow] = {
+                        ...newGuesses[currentRow],
+                        chapterVerse: chapterPart + ":" + versePart + key
+                    };
+                    setGuesses(newGuesses);
+
+                    // If we've entered 2 digits for verse and have a book, automatically submit
+                    if (versePart.length === 1 && currentGuess.book) {
+                        setTimeout(() => {
+                            checkGuess(newGuesses[currentRow]);
+
+                            // After submitting, prepare for the next row if game isn't over
+                            if (currentRow < MAX_GUESSES - 1 && !gameCompleted) {
+                                setCurrentInputType('chapter');
+                            }
+                        }, 500); // Small delay to show the input
+                    }
                 }
             }
         }
@@ -203,27 +316,32 @@ export default function Versele() {
 
     const selectBook = (book: string) => {
         const newGuesses = [...guesses];
-        newGuesses[selectedRowIndex] = {
-            ...newGuesses[selectedRowIndex],
+        newGuesses[currentRow] = {
+            ...newGuesses[currentRow],
             book: book
         };
         setGuesses(newGuesses);
         setSelectedBook(book);
         setShowBookModal(false);
+        setCurrentInputType('chapter');
     };
 
     const getGuessColor = (rowIndex: number, type: 'book' | 'chapter' | 'colon' | 'verse', digitIndex = 0): string => {
         if (!currentVerse) return "#fff";
+
+        // Safeguard against undefined or out-of-bounds rows
+        if (rowIndex < 0 || rowIndex >= guesses.length) return "#fff";
+
+        // For future rows (not yet guessed), always white
         if (rowIndex > currentRow) return "#fff";
-        if (rowIndex === currentRow && revealedBoxes < 0) return "#fff";
 
-        // Extract guess data
+        // Extract guess data - safely check for empty guesses
         const guess = guesses[rowIndex];
-        if (!guess.book || !guess.chapterVerse) return "#fff";
+        if (!guess || !guess.book || !guess.chapterVerse) return "#fff";
 
-        // If the row is in the process of being revealed
-        if (rowIndex === currentRow) {
-            // Map box types to indices
+        // If we're revealing the current row, control the color reveal animation
+        if (rowIndex === currentRow && revealedBoxes >= 0) {
+            // Map box types to indices for animation sequence
             const boxIndices = {
                 'book': 0,
                 'chapter': [1, 2],
@@ -231,21 +349,32 @@ export default function Versele() {
                 'verse': [4, 5]
             };
 
-            let boxIndex;
-            if (type === 'chapter') boxIndex = boxIndices.chapter[digitIndex];
-            else if (type === 'verse') boxIndex = boxIndices.verse[digitIndex];
-            else if (type === 'book') boxIndex = 0;
-            else boxIndex = 3; // colon
+            let boxIndex = -1;
+            if (type === 'chapter' && digitIndex < boxIndices.chapter.length) {
+                boxIndex = boxIndices.chapter[digitIndex];
+            } else if (type === 'verse' && digitIndex < boxIndices.verse.length) {
+                boxIndex = boxIndices.verse[digitIndex];
+            } else if (type === 'book') {
+                boxIndex = 0;
+            } else if (type === 'colon') {
+                boxIndex = 3;
+            }
 
+            // If this box hasn't been revealed yet in the animation sequence, show white
             if (boxIndex > revealedBoxes) return "#fff";
         }
 
-        // Extract chapter and verse from the guess
-        const [chapterStr, verseStr] = guess.chapterVerse.split(":");
+        // If we're on current row but not in animation and not completed game, show white
+        if (rowIndex === currentRow && revealedBoxes < 0 && !gameCompleted) return "#fff";
+
+        // Extract chapter and verse from the guess - with safety checks
+        const parts = guess.chapterVerse.split(":");
+        const chapterStr = parts.length > 0 ? parts[0] : "";
+        const verseStr = parts.length > 1 ? parts[1] : "";
 
         // Ensure we have strings for comparison
-        const targetChapter = String(currentVerse.chapter);
-        const targetVerse = String(currentVerse.verse);
+        const targetChapter = currentVerse.chapter ? String(currentVerse.chapter) : "";
+        const targetVerse = currentVerse.verse ? String(currentVerse.verse) : "";
 
         // Book color
         if (type === 'book') {
@@ -254,7 +383,7 @@ export default function Versele() {
             } else {
                 // Check if the book is close to the target book
                 const guessIndex = BIBLE_BOOKS.indexOf(guess.book);
-                const targetIndex = BIBLE_BOOKS.indexOf(currentVerse.book);
+                const targetIndex = BIBLE_BOOKS.indexOf(currentVerse.book || "");
 
                 if (Math.abs(guessIndex - targetIndex) <= 5) {
                     return "#B59F3B"; // Yellow - close
@@ -263,37 +392,85 @@ export default function Versele() {
             }
         }
 
-        // Chapter color - Wordle style
+        // Chapter color - with improved handling of duplicates
         if (type === 'chapter') {
-            // Get the specific digit
-            const digit = chapterStr[digitIndex] || '';
-            const targetDigit = targetChapter[digitIndex] || '';
+            // Get the specific digit with safety check
+            const digit = chapterStr && digitIndex < chapterStr.length ? chapterStr[digitIndex] : '';
+            const targetDigit = targetChapter && digitIndex < targetChapter.length ? targetChapter[digitIndex] : '';
 
-            // Exact match at the specific position
+            // If exact match at the specific position, always green
             if (digit === targetDigit && digit !== '') {
                 return "#5B8A51"; // Green - correct
             }
-            // Digit exists in the target but in a different position
-            else if (targetChapter.includes(digit) && digit !== '') {
+
+            // Count frequencies in target and guess
+            const targetFreq: Record<string, number> = {};
+            const exactMatchPositions: Set<number> = new Set();
+
+            // Build frequency map of target chapter
+            for (let i = 0; i < targetChapter.length; i++) {
+                const d = targetChapter[i];
+                targetFreq[d] = (targetFreq[d] || 0) + 1;
+            }
+
+            // Reduce frequencies for exact matches
+            for (let i = 0; i < chapterStr.length; i++) {
+                const guessDigit = chapterStr[i];
+                const currTargetDigit = i < targetChapter.length ? targetChapter[i] : '';
+
+                if (guessDigit === currTargetDigit) {
+                    targetFreq[guessDigit]--;
+                    exactMatchPositions.add(i);
+                }
+            }
+
+            // If not an exact match, check if it can be yellow
+            if (!exactMatchPositions.has(digitIndex) && digit && targetFreq[digit] && targetFreq[digit] > 0) {
+                targetFreq[digit]--; // Decrease frequency to mark this one as used
                 return "#B59F3B"; // Yellow - wrong position
             }
+
             return "#A94442"; // Red - wrong
         }
 
-        // Verse color - Wordle style
+        // Verse color - with improved handling of duplicates
         if (type === 'verse') {
-            // Get the specific digit
-            const digit = verseStr[digitIndex] || '';
-            const targetDigit = targetVerse[digitIndex] || '';
+            // Get the specific digit with safety check
+            const digit = verseStr && digitIndex < verseStr.length ? verseStr[digitIndex] : '';
+            const targetDigit = targetVerse && digitIndex < targetVerse.length ? targetVerse[digitIndex] : '';
 
-            // Exact match at the specific position
+            // If exact match at the specific position, always green
             if (digit === targetDigit && digit !== '') {
                 return "#5B8A51"; // Green - correct
             }
-            // Digit exists in the target but in a different position
-            else if (targetVerse.includes(digit) && digit !== '') {
+
+            // Count frequencies in target and guess
+            const targetFreq: Record<string, number> = {};
+            const exactMatchPositions: Set<number> = new Set();
+
+            // Build frequency map of target verse
+            for (let i = 0; i < targetVerse.length; i++) {
+                const d = targetVerse[i];
+                targetFreq[d] = (targetFreq[d] || 0) + 1;
+            }
+
+            // Reduce frequencies for exact matches
+            for (let i = 0; i < verseStr.length; i++) {
+                const guessDigit = verseStr[i];
+                const currTargetDigit = i < targetVerse.length ? targetVerse[i] : '';
+
+                if (guessDigit === currTargetDigit) {
+                    targetFreq[guessDigit]--;
+                    exactMatchPositions.add(i);
+                }
+            }
+
+            // If not an exact match, check if it can be yellow
+            if (!exactMatchPositions.has(digitIndex) && digit && targetFreq[digit] && targetFreq[digit] > 0) {
+                targetFreq[digit]--; // Decrease frequency to mark this one as used
                 return "#B59F3B"; // Yellow - wrong position
             }
+
             return "#A94442"; // Red - wrong
         }
 
@@ -327,12 +504,11 @@ export default function Versele() {
                     <TouchableOpacity
                         disabled={!isCurrentRow || gameCompleted}
                         onPress={() => {
-                            setSelectedRowIndex(rowIndex);
-                            setSelectedBoxType('book');
                             setShowBookModal(true);
                         }}
                         style={[
                             styles.bookBox,
+                            isCurrentRow && !gameCompleted && !guess.book ? styles.highlightedBox : null,
                             { backgroundColor: getGuessColor(rowIndex, 'book') }
                         ]}
                     >
@@ -344,22 +520,14 @@ export default function Versele() {
                         </Text>
                     </TouchableOpacity>
 
-                    {/* Chapter boxes (2 digits) - clickable */}
-                    <TouchableOpacity
-                        disabled={!isCurrentRow || gameCompleted || !guess.book}
-                        onPress={() => {
-                            setSelectedRowIndex(rowIndex);
-                            setSelectedBoxType('chapter');
-                            // Clear existing chapter:verse input and start fresh
-                            setChapterVerseInput("");
-                        }}
-                        style={styles.doubleDigitContainer}
-                    >
+                    {/* Chapter boxes (2 digits) */}
+                    <View style={styles.doubleDigitContainer}>
                         {chapterDigits.map((digit, index) => (
                             <View
                                 key={`chapter-${index}`}
                                 style={[
                                     styles.digitBox,
+                                    isCurrentRow && !gameCompleted && currentInputType === 'chapter' ? styles.highlightedBox : null,
                                     { backgroundColor: getGuessColor(rowIndex, 'chapter', index) }
                                 ]}
                             >
@@ -371,31 +539,19 @@ export default function Versele() {
                                 </Text>
                             </View>
                         ))}
-                    </TouchableOpacity>
+                    </View>
 
                     {/* Fixed colon */}
                     <Text style={styles.fixedColon}>:</Text>
 
-                    {/* Verse boxes (2 digits) - clickable */}
-                    <TouchableOpacity
-                        disabled={!isCurrentRow || gameCompleted || !guess.book || !chapterText}
-                        onPress={() => {
-                            setSelectedRowIndex(rowIndex);
-                            setSelectedBoxType('verse');
-                            // If there's already chapter input, preserve it
-                            if (chapterText) {
-                                setChapterVerseInput(chapterText + ":");
-                            } else {
-                                setChapterVerseInput("");
-                            }
-                        }}
-                        style={styles.doubleDigitContainer}
-                    >
+                    {/* Verse boxes (2 digits) */}
+                    <View style={styles.doubleDigitContainer}>
                         {verseDigits.map((digit, index) => (
                             <View
                                 key={`verse-${index}`}
                                 style={[
                                     styles.digitBox,
+                                    isCurrentRow && !gameCompleted && currentInputType === 'verse' ? styles.highlightedBox : null,
                                     { backgroundColor: getGuessColor(rowIndex, 'verse', index) }
                                 ]}
                             >
@@ -407,25 +563,40 @@ export default function Versele() {
                                 </Text>
                             </View>
                         ))}
-                    </TouchableOpacity>
+                    </View>
                 </View>
             );
         });
     };
 
     const revealRow = async (rowIndex: number) => {
+        // Safety check for valid rowIndex and flipAnimations
+        if (rowIndex < 0 || rowIndex >= guesses.length || !flipAnimations[rowIndex]) {
+            console.error(`Invalid rowIndex: ${rowIndex} or missing flipAnimations`);
+            return;
+        }
+
+        // Remember whether this is a completed game for after animation
+        const isGameComplete = gameCompleted;
+
         // Animate the reveal of the current guess boxes one by one
-        for (let i = 0; i < 5; i++) {
-            Animated.timing(flipAnimations[rowIndex][i], {
-                toValue: 1,
-                duration: 300,
-                useNativeDriver: false,
-            }).start();
+        for (let i = 0; i < 5 && i < flipAnimations[rowIndex].length; i++) {
+            if (flipAnimations[rowIndex][i]) {
+                Animated.timing(flipAnimations[rowIndex][i], {
+                    toValue: 1,
+                    duration: 300,
+                    useNativeDriver: false,
+                }).start();
+            }
 
             setRevealedBoxes(i);
             await new Promise(resolve => setTimeout(resolve, 300));
         }
-        setRevealedBoxes(-1);
+
+        // After animation completes, only reset revealedBoxes if game isn't over
+        if (!isGameComplete) {
+            setRevealedBoxes(-1);
+        }
     };
 
     const saveGameState = async () => {
@@ -468,63 +639,6 @@ export default function Versele() {
         }
     };
 
-    const completeNumberInput = () => {
-        if (!chapterVerseInput || !selectedBoxType) return;
-
-        if (selectedBoxType === 'chapter') {
-            // Validate chapter input
-            if (chapterVerseInput.length === 0) return;
-
-            // Update the guess with just the chapter part
-            const newGuesses = [...guesses];
-            const currentChapterVerse = newGuesses[selectedRowIndex].chapterVerse || "";
-            const versePart = currentChapterVerse.includes(":") ? currentChapterVerse.split(":")[1] : "";
-
-            newGuesses[selectedRowIndex] = {
-                ...newGuesses[selectedRowIndex],
-                chapterVerse: chapterVerseInput + (versePart ? ":" + versePart : "")
-            };
-
-            setGuesses(newGuesses);
-            setSelectedBoxType(null);
-            setChapterVerseInput("");
-        }
-        else if (selectedBoxType === 'verse') {
-            // We should already have the chapter part in the input or current guess
-            const newGuesses = [...guesses];
-            const currentValue = newGuesses[selectedRowIndex].chapterVerse || "";
-            let chapterPart = "";
-
-            if (currentValue.includes(":")) {
-                chapterPart = currentValue.split(":")[0];
-            } else if (chapterVerseInput.includes(":")) {
-                chapterPart = chapterVerseInput.split(":")[0];
-            }
-
-            if (!chapterPart) return;
-
-            // Update with verse part
-            const versePart = chapterVerseInput.includes(":") ?
-                chapterVerseInput.split(":")[1] : chapterVerseInput;
-
-            newGuesses[selectedRowIndex] = {
-                ...newGuesses[selectedRowIndex],
-                chapterVerse: chapterPart + ":" + versePart
-            };
-
-            setGuesses(newGuesses);
-            setSelectedBoxType(null);
-            setChapterVerseInput("");
-
-            // If we have all parts filled, check if the guess is complete
-            if (newGuesses[selectedRowIndex].book &&
-                newGuesses[selectedRowIndex].chapterVerse &&
-                newGuesses[selectedRowIndex].chapterVerse.includes(":")) {
-                checkGuess(newGuesses[selectedRowIndex]);
-            }
-        }
-    };
-
     const checkGuess = (guess: { book: string, chapterVerse: string }) => {
         if (!currentVerse || !guess.book || !guess.chapterVerse || !guess.chapterVerse.includes(":")) return;
 
@@ -552,6 +666,15 @@ export default function Versele() {
                             onPress: () => {
                                 AsyncStorage.setItem('lastVerselePlayed', new Date().getTime().toString());
                             }
+                        },
+                        {
+                            text: "Play Again (Ad)",
+                            onPress: async () => {
+                                await AsyncStorage.removeItem('lastVerselePlayed');
+                                await loadNewVerse();
+                                setCurrentInputType('chapter');
+                                setGameCompleted(false);
+                            }
                         }
                     ]
                 );
@@ -567,7 +690,23 @@ export default function Versele() {
                 Alert.alert(
                     "Game Over",
                     `The correct reference was: ${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}`,
-                    [{ text: "OK" }]
+                    [
+                        {
+                            text: "OK",
+                            onPress: () => {
+                                AsyncStorage.setItem('lastVerselePlayed', new Date().getTime().toString());
+                            }
+                        },
+                        {
+                            text: "Play Again (Ad)",
+                            onPress: async () => {
+                                await AsyncStorage.removeItem('lastVerselePlayed');
+                                await loadNewVerse();
+                                setCurrentInputType('chapter');
+                                setGameCompleted(false);
+                            }
+                        }
+                    ]
                 );
             }, 1500);
             return;
@@ -576,6 +715,152 @@ export default function Versele() {
         // Move to next row
         revealRow(currentRow);
         setCurrentRow(currentRow + 1);
+    };
+
+    // Add function to track number key states based on previous guesses
+    const getNumberKeyStates = (): Record<string, DigitState> => {
+        if (!currentVerse) return {};
+
+        const states: Record<string, DigitState> = {};
+
+        // Initialize all digits as unused
+        '0123456789'.split('').forEach(digit => {
+            states[digit] = 'unused';
+        });
+
+        // Go through all guessed rows
+        for (let rowIndex = 0; rowIndex < currentRow; rowIndex++) {
+            const guess = guesses[rowIndex];
+            if (!guess.chapterVerse) continue;
+
+            const parts = guess.chapterVerse.split(':');
+            const chapterStr = parts[0] || "";
+            const verseStr = parts.length > 1 ? parts[1] : "";
+
+            // Target values for comparison
+            const targetChapter = currentVerse.chapter ? String(currentVerse.chapter) : "";
+            const targetVerse = currentVerse.verse ? String(currentVerse.verse) : "";
+
+            // Create frequency maps for target chapter and verse
+            const chapterFreq: Record<string, number> = {};
+            const verseFreq: Record<string, number> = {};
+
+            // Build frequency maps
+            for (let i = 0; i < targetChapter.length; i++) {
+                const digit = targetChapter[i];
+                chapterFreq[digit] = (chapterFreq[digit] || 0) + 1;
+            }
+
+            for (let i = 0; i < targetVerse.length; i++) {
+                const digit = targetVerse[i];
+                verseFreq[digit] = (verseFreq[digit] || 0) + 1;
+            }
+
+            // Track exact matches in chapter
+            const chapterExactMatches: Set<number> = new Set();
+            for (let i = 0; i < chapterStr.length; i++) {
+                const digit = chapterStr[i];
+                if (i < targetChapter.length && digit === targetChapter[i]) {
+                    chapterExactMatches.add(i);
+                    chapterFreq[digit]--; // Decrease available count
+
+                    // Mark as correct in states (highest priority)
+                    states[digit] = 'correct';
+                }
+            }
+
+            // Track exact matches in verse
+            const verseExactMatches: Set<number> = new Set();
+            for (let i = 0; i < verseStr.length; i++) {
+                const digit = verseStr[i];
+                if (i < targetVerse.length && digit === targetVerse[i]) {
+                    verseExactMatches.add(i);
+                    verseFreq[digit]--; // Decrease available count
+
+                    // Mark as correct in states (highest priority)
+                    states[digit] = 'correct';
+                }
+            }
+
+            // Check for present but misplaced digits in chapter
+            for (let i = 0; i < chapterStr.length; i++) {
+                if (chapterExactMatches.has(i)) continue; // Skip exact matches
+
+                const digit = chapterStr[i];
+                // If digit exists in chapter and there are still available instances
+                if (chapterFreq[digit] && chapterFreq[digit] > 0) {
+                    chapterFreq[digit]--; // Decrease available count
+
+                    // Only upgrade to 'present' if not already 'correct'
+                    if (states[digit] !== 'correct') {
+                        states[digit] = 'present';
+                    }
+                }
+                // If digit exists in verse and there are still available instances
+                else if (verseFreq[digit] && verseFreq[digit] > 0) {
+                    verseFreq[digit]--; // Decrease available count
+
+                    // Only upgrade to 'present' if not already 'correct'
+                    if (states[digit] !== 'correct') {
+                        states[digit] = 'present';
+                    }
+                }
+                // If not already marked and not found in either chapter or verse
+                else if (states[digit] === 'unused') {
+                    states[digit] = 'absent';
+                }
+            }
+
+            // Check for present but misplaced digits in verse
+            for (let i = 0; i < verseStr.length; i++) {
+                if (verseExactMatches.has(i)) continue; // Skip exact matches
+
+                const digit = verseStr[i];
+                // If digit exists in verse and there are still available instances
+                if (verseFreq[digit] && verseFreq[digit] > 0) {
+                    verseFreq[digit]--; // Decrease available count
+
+                    // Only upgrade to 'present' if not already 'correct'
+                    if (states[digit] !== 'correct') {
+                        states[digit] = 'present';
+                    }
+                }
+                // If digit exists in chapter and there are still available instances
+                else if (chapterFreq[digit] && chapterFreq[digit] > 0) {
+                    chapterFreq[digit]--; // Decrease available count
+
+                    // Only upgrade to 'present' if not already 'correct'
+                    if (states[digit] !== 'correct') {
+                        states[digit] = 'present';
+                    }
+                }
+                // If not already marked and not found in either chapter or verse
+                else if (states[digit] === 'unused') {
+                    states[digit] = 'absent';
+                }
+            }
+        }
+
+        return states;
+    };
+
+    // Add helper function to get the background color for a key
+    const getKeyBackground = (key: string): string => {
+        if (key === "ENTER" || key === "BACKSPACE") {
+            return "#d4b08c"; // Default color for special keys
+        }
+
+        const digitStates = getNumberKeyStates();
+        switch (digitStates[key]) {
+            case 'correct':
+                return "#5B8A51"; // Green
+            case 'present':
+                return "#B59F3B"; // Yellow
+            case 'absent':
+                return "#A94442"; // Red
+            default:
+                return "#e8d5c4"; // Default color
+        }
     };
 
     if (isLoading || !currentVerse) {
@@ -611,17 +896,8 @@ export default function Versele() {
 
             <View style={styles.grid}>{renderGrid()}</View>
 
-            {/* Current number input display */}
-            {selectedBoxType === 'chapter' || selectedBoxType === 'verse' ? (
-                <View style={styles.currentInputContainer}>
-                    <Text style={styles.currentInputText}>
-                        {chapterVerseInput}
-                    </Text>
-                </View>
-            ) : null}
-
-            {/* Number keyboard - only show when entering chapter or verse */}
-            {(selectedBoxType === 'chapter' || selectedBoxType === 'verse') && (
+            {/* Always show keyboard unless game is completed */}
+            {!gameCompleted && (
                 <View style={styles.keyboard}>
                     {[["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["0", "BACKSPACE", "ENTER"]].map((row, rowIndex) => (
                         <View key={rowIndex} style={styles.keyboardRow}>
@@ -650,10 +926,18 @@ export default function Versele() {
                                     return (
                                         <TouchableOpacity
                                             key={key}
-                                            style={styles.key}
+                                            style={[
+                                                styles.key,
+                                                { backgroundColor: getKeyBackground(key) }
+                                            ]}
                                             onPress={() => handleKeyPress(key)}
                                         >
-                                            <Text style={styles.keyText}>{key}</Text>
+                                            <Text style={[
+                                                styles.keyText,
+                                                getNumberKeyStates()[key] !== 'unused' && { color: '#fff' }
+                                            ]}>
+                                                {key}
+                                            </Text>
                                         </TouchableOpacity>
                                     );
                                 }
@@ -978,5 +1262,9 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "700",
         color: '#2c1810',
+    },
+    highlightedBox: {
+        borderColor: '#e67e22',
+        borderWidth: 3,
     },
 }); 
