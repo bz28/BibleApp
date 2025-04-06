@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated } from "react-native";
 import { initDatabase, getRandomSpeaker } from './database/database';
 import { Speaker } from './database/schema';
@@ -28,18 +28,20 @@ export default function Kahoot() {
     const [correctAnswer, setCorrectAnswer] = useState('');
     const [feedbackTimeout, setFeedbackTimeout] = useState<NodeJS.Timeout | null>(null);
 
-
-
     // Use a ref instead of state for the animation
     const timerAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
     const [timerWidth] = useState(new Animated.Value(1));
-
 
     // Add a new state to track when the screen should be frozen
     const [screenFrozen, setScreenFrozen] = useState(false);
 
     // Add a state to track if we should show the timer
     const [showTimer, setShowTimer] = useState(true);
+
+    // Add state for intermission countdown
+    const [showIntermission, setShowIntermission] = useState(false);
+    const [intermissionProgress] = useState(new Animated.Value(0));
+    const [intermissionTime, setIntermissionTime] = useState(3); // seconds
 
     useEffect(() => {
         setupGame();
@@ -55,6 +57,35 @@ export default function Kahoot() {
         };
     }, []);
 
+    // Add new useEffect for intermission timer
+    useEffect(() => {
+        if (showIntermission) {
+            // Reset the intermission timer
+            setIntermissionTime(3);
+            intermissionProgress.setValue(0);
+
+            // Start the circular animation
+            Animated.timing(intermissionProgress, {
+                toValue: 1,
+                duration: 3000, // 3 seconds
+                useNativeDriver: false,
+            }).start();
+
+            // Countdown timer for text display
+            const interval = setInterval(() => {
+                setIntermissionTime(prev => {
+                    if (prev <= 1) {
+                        clearInterval(interval);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+
+            return () => clearInterval(interval);
+        }
+    }, [showIntermission]);
+
     const setupGame = async () => {
         try {
             await initDatabase();
@@ -69,6 +100,7 @@ export default function Kahoot() {
         setIsLoading(true);
         setTimerActive(false);
         setShowFeedback(false);
+        setShowIntermission(false);
 
         // Reset the timer width to full without animation
         timerWidth.setValue(1);
@@ -161,10 +193,16 @@ export default function Kahoot() {
         setTimerActive(false);
         setIsCorrect(false);
 
+        // Set a timeout to show intermission after feedback
+        setTimeout(() => {
+            setShowFeedback(false);
+            setShowIntermission(true);
+        }, 2000);
+
         // Set a timeout to move to the next question
         const timeout = setTimeout(() => {
             loadNewQuestion();
-        }, 2000);
+        }, 5000); // Give enough time for intermission (2s feedback + 3s intermission)
 
         setFeedbackTimeout(timeout);
     };
@@ -192,14 +230,19 @@ export default function Kahoot() {
             setScore(prev => prev + 1);
         }
 
+        // Set a timeout to transition to intermission
+        setTimeout(() => {
+            setShowFeedback(false);
+            setShowIntermission(true);
+        }, 2000);
+
         // Set a timeout to move to the next question
         const timeout = setTimeout(() => {
             loadNewQuestion();
-        }, 4000);
+        }, 5000); // Give enough time for intermission (2s feedback + 3s intermission)
 
         setFeedbackTimeout(timeout);
     };
-
 
     const getVerseFontSize = (text: string) => {
         const length = text.length;
@@ -227,6 +270,55 @@ export default function Kahoot() {
 
         console.log(`[DEBUG] Selected box height: ${height}px`);
         return height;
+    };
+
+    // Render the intermission screen
+    const renderIntermission = () => {
+        return (
+            <View style={styles.intermissionContainer}>
+                <Text style={styles.intermissionTitle}>Next Question In</Text>
+
+                <View style={styles.circularProgressContainer}>
+                    {/* Simple circular timer using a border approach */}
+                    <Animated.View
+                        style={[
+                            styles.circleBackground,
+                            {
+                                borderWidth: 12,
+                                // As progress increases, we change the color of each border section to create a timer effect
+                                borderRightColor: intermissionProgress.interpolate({
+                                    inputRange: [0, 0.125, 0.125],
+                                    outputRange: ['#8b4513', '#8b4513', '#e8d5c4'],
+                                    extrapolate: 'clamp'
+                                }),
+                                borderBottomColor: intermissionProgress.interpolate({
+                                    inputRange: [0, 0.125, 0.375, 0.375],
+                                    outputRange: ['#8b4513', '#8b4513', '#8b4513', '#e8d5c4'],
+                                    extrapolate: 'clamp'
+                                }),
+                                borderLeftColor: intermissionProgress.interpolate({
+                                    inputRange: [0, 0.375, 0.625, 0.625],
+                                    outputRange: ['#8b4513', '#8b4513', '#8b4513', '#e8d5c4'],
+                                    extrapolate: 'clamp'
+                                }),
+                                borderTopColor: intermissionProgress.interpolate({
+                                    inputRange: [0, 0.625, 0.875, 0.875],
+                                    outputRange: ['#8b4513', '#8b4513', '#8b4513', '#e8d5c4'],
+                                    extrapolate: 'clamp'
+                                }),
+                            }
+                        ]}
+                    />
+
+                    {/* Inner circle with countdown number */}
+                    <View style={styles.circleInner}>
+                        <Text style={styles.intermissionTimeText}>{intermissionTime}</Text>
+                    </View>
+                </View>
+
+                <Text style={styles.intermissionSubtext}>Get ready!</Text>
+            </View>
+        );
     };
 
     if (isLoading || !currentSpeaker) {
@@ -267,64 +359,71 @@ export default function Kahoot() {
                 </View>
             </View>
 
-            <View style={styles.middleSection}>
-                <Text
-                    style={[
-                        styles.verse,
-                        {
-                            fontSize: getVerseFontSize(currentSpeaker.hint),
-                            height: getVerseBoxHeight(currentSpeaker.hint)
-                        }
-                    ]}
-                    numberOfLines={6}
-                >
-                    {currentSpeaker.hint}
-                </Text>
-
-                {/* Add a feedback placeholder that's always there */}
-                <View style={styles.feedbackPlaceholder}>
-                    {showFeedback && (
-                        <View style={[
-                            styles.feedbackContainer,
-                            isCorrect ? styles.correctFeedback : styles.incorrectFeedback
-                        ]}>
-                            <Text style={styles.feedbackText}>
-                                {isCorrect ? 'Correct!' : `Incorrect! The answer was ${correctAnswer}`}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-            </View>
-
-            <View style={styles.bottomSection}>
-                <View style={styles.grid}>
-                    {options.map((option, index) => (
-                        <TouchableOpacity
-                            key={index}
+            {/* Show intermission screen or regular content */}
+            {showIntermission ? (
+                renderIntermission()
+            ) : (
+                <>
+                    <View style={styles.middleSection}>
+                        <Text
                             style={[
-                                styles.box,
-                                { backgroundColor: Object.values(ANSWER_COLORS)[index] },
-                                showFeedback && option === correctAnswer && styles.correctAnswerBox,
-                                showFeedback && option !== correctAnswer && styles.disabledBox
+                                styles.verse,
+                                {
+                                    fontSize: getVerseFontSize(currentSpeaker.hint),
+                                    height: getVerseBoxHeight(currentSpeaker.hint)
+                                }
                             ]}
-                            onPress={() => !showFeedback && handleAnswer(option)}
-                            disabled={showFeedback}
+                            numberOfLines={6}
                         >
-                            <View style={styles.answerContainer}>
-                                <Text
+                            {currentSpeaker.hint}
+                        </Text>
+
+                        {/* Add a feedback placeholder that's always there */}
+                        <View style={styles.feedbackPlaceholder}>
+                            {showFeedback && (
+                                <View style={[
+                                    styles.feedbackContainer,
+                                    isCorrect ? styles.correctFeedback : styles.incorrectFeedback
+                                ]}>
+                                    <Text style={styles.feedbackText}>
+                                        {isCorrect ? 'Correct!' : `Incorrect! The answer was ${correctAnswer}`}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+
+                    <View style={styles.bottomSection}>
+                        <View style={styles.grid}>
+                            {options.map((option, index) => (
+                                <TouchableOpacity
+                                    key={index}
                                     style={[
-                                        styles.boxText,
-                                        showFeedback && option === correctAnswer && styles.correctAnswerText
+                                        styles.box,
+                                        { backgroundColor: Object.values(ANSWER_COLORS)[index] },
+                                        showFeedback && option === correctAnswer && styles.correctAnswerBox,
+                                        showFeedback && option !== correctAnswer && styles.disabledBox
                                     ]}
-                                    numberOfLines={2}
+                                    onPress={() => !showFeedback && handleAnswer(option)}
+                                    disabled={showFeedback}
                                 >
-                                    {option}
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
+                                    <View style={styles.answerContainer}>
+                                        <Text
+                                            style={[
+                                                styles.boxText,
+                                                showFeedback && option === correctAnswer && styles.correctAnswerText
+                                            ]}
+                                            numberOfLines={2}
+                                        >
+                                            {option}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </>
+            )}
         </View>
     );
 }
@@ -540,5 +639,63 @@ const styles = StyleSheet.create({
         bottom: 0,
         backgroundColor: 'transparent',
         zIndex: 100, // Above everything else
+    },
+    // Updated intermission styles
+    intermissionContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(245, 230, 211, 0.95)', // Slightly transparent parchment color
+        padding: 20,
+    },
+    intermissionTitle: {
+        fontSize: 24,
+        fontWeight: '900',
+        color: '#2c1810',
+        marginBottom: 20,
+        textAlign: 'center',
+        textShadowColor: 'rgba(255, 255, 255, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+    intermissionSubtext: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#5e3023',
+        marginTop: 20,
+        textAlign: 'center',
+    },
+    circularProgressContainer: {
+        width: 150,
+        height: 150,
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+        marginVertical: 20,
+    },
+    circleBackground: {
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        borderColor: '#8b4513', // Brown border - this is what we'll see as the timer starts
+        backgroundColor: 'transparent',
+        position: 'absolute',
+    },
+    circleInner: {
+        width: 116,
+        height: 116,
+        borderRadius: 58,
+        backgroundColor: '#f5e6d3', // Inner circle color - background for the number
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2,
+    },
+    intermissionTimeText: {
+        fontSize: 48,
+        fontWeight: '900',
+        color: '#8b4513',
+        textShadowColor: 'rgba(255, 255, 255, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
     },
 });
