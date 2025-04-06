@@ -1131,14 +1131,14 @@ export default function Versele() {
             {/* Always show keyboard unless game is completed */}
             {!gameCompleted && (
                 <View style={styles.keyboard}>
-                    {[["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["0", "BACKSPACE", "ENTER"]].map((row, rowIndex) => (
+                    {[["1", "2", "3", "4", "5"], ["6", "7", "8", "9", "0", "BACKSPACE", "ENTER"]].map((row, rowIndex) => (
                         <View key={rowIndex} style={styles.keyboardRow}>
                             {row.map((key) => {
                                 if (key === "ENTER") {
                                     return (
                                         <TouchableOpacity
                                             key={key}
-                                            style={[styles.keyEnter, { width: 90 }]}
+                                            style={[styles.keyEnter]}
                                             onPress={() => handleKeyPress(key)}
                                         >
                                             <Text style={styles.keyText}>{key}</Text>
@@ -1374,16 +1374,18 @@ const styles = StyleSheet.create({
     keyboard: {
         width: '100%',
         alignItems: 'center',
+        marginTop: 10,
     },
     keyboardRow: {
         flexDirection: "row",
         justifyContent: "center",
         marginBottom: 5,
+        flexWrap: "wrap",
     },
     key: {
         width: 45,
-        height: 40,
-        margin: 2,
+        height: 45,
+        margin: 4,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 1,
@@ -1392,9 +1394,9 @@ const styles = StyleSheet.create({
         backgroundColor: "#e8d5c4",
     },
     keyEnter: {
-        width: 90,
-        height: 40,
-        margin: 2,
+        width: 80,
+        height: 45,
+        margin: 4,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 1,
@@ -1403,7 +1405,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#d4b08c",
     },
     keyText: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: "700",
         color: '#2c1810',
     },
