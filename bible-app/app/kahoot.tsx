@@ -43,6 +43,9 @@ export default function Kahoot() {
     const [intermissionProgress] = useState(new Animated.Value(0));
     const [intermissionTime, setIntermissionTime] = useState(3); // seconds
 
+    // Add state to track points for current question
+    const [currentPoints, setCurrentPoints] = useState(0);
+
     useEffect(() => {
         setupGame();
 
@@ -192,6 +195,7 @@ export default function Kahoot() {
         setShowFeedback(true);
         setTimerActive(false);
         setIsCorrect(false);
+        setCurrentPoints(0); // No points for timeout
 
         // Set a timeout to show intermission after feedback
         setTimeout(() => {
@@ -223,12 +227,24 @@ export default function Kahoot() {
 
         if (!currentSpeaker) return;
 
+        // Calculate score based on correctness and time
         const correct = selectedAnswer === currentSpeaker.answer;
-        setIsCorrect(correct);
 
+        let pointsEarned = 0;
         if (correct) {
-            setScore(prev => prev + 1);
+            // Calculate points based on remaining time
+            // Maximum 1000 points when answering immediately (5 seconds left)
+            // Minimum 100 points when answering at the last moment
+            pointsEarned = Math.round(100 + (900 * (timeLeft / 5)));
+
+            // Update the total score
+            setScore(prev => prev + pointsEarned);
         }
+
+        // Store the points earned for this question to display in feedback
+        setCurrentPoints(pointsEarned);
+
+        setIsCorrect(correct);
 
         // Set a timeout to transition to intermission
         setTimeout(() => {
@@ -321,6 +337,18 @@ export default function Kahoot() {
         );
     };
 
+    // Update the feedback text to include points
+    const getFeedbackText = () => {
+        if (isCorrect) {
+            return `Correct! +${currentPoints} points`;
+        } else {
+            if (currentPoints === 0) {
+                return `Incorrect! The answer was ${correctAnswer}`;
+            }
+            return `Incorrect! The answer was ${correctAnswer}`;
+        }
+    };
+
     if (isLoading || !currentSpeaker) {
         return (
             <View style={styles.container}>
@@ -378,7 +406,7 @@ export default function Kahoot() {
                             {currentSpeaker.hint}
                         </Text>
 
-                        {/* Add a feedback placeholder that's always there */}
+                        {/* Updated feedback placeholder with points */}
                         <View style={styles.feedbackPlaceholder}>
                             {showFeedback && (
                                 <View style={[
@@ -386,7 +414,7 @@ export default function Kahoot() {
                                     isCorrect ? styles.correctFeedback : styles.incorrectFeedback
                                 ]}>
                                     <Text style={styles.feedbackText}>
-                                        {isCorrect ? 'Correct!' : `Incorrect! The answer was ${correctAnswer}`}
+                                        {getFeedbackText()}
                                     </Text>
                                 </View>
                             )}
