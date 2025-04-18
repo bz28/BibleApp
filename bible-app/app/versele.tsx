@@ -18,36 +18,36 @@ const BIBLE_BOOKS = [
     '1 John', '2 John', '3 John', 'Jude', 'Revelation'
 ];
 
-const MAX_GUESSES = 5;
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const SCREEN_HEIGHT = Dimensions.get("window").height;
+const MAX_GUESSES = 5; // number of guesses
+const SCREEN_WIDTH = Dimensions.get("window").width; // width of the screen
+const SCREEN_HEIGHT = Dimensions.get("window").height; // height of the screen
 
-// Add a new type for digit states
+// Add a new type for digit states red, yellow, green, white
 type DigitState = 'correct' | 'present' | 'absent' | 'unused';
 
 export default function Versele() {
     const [guesses, setGuesses] = useState<{ book: string, chapterVerse: string }[]>(
-        Array(MAX_GUESSES).fill({ book: "", chapterVerse: "" })
+        Array(MAX_GUESSES).fill({ book: "", chapterVerse: "" }) // initial guesses
     );
-    const [currentRow, setCurrentRow] = useState(0);
-    const [currentVerse, setCurrentVerse] = useState<VerseReference | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [gameCompleted, setGameCompleted] = useState(false);
-    const [revealedBoxes, setRevealedBoxes] = useState<number>(-1);
-    const [flipAnimations, setFlipAnimations] = useState<Animated.Value[][]>([]);
-    const [showBookModal, setShowBookModal] = useState(false);
-    const [currentInputType, setCurrentInputType] = useState<'book' | 'chapter' | 'verse'>('chapter');
+    const [currentRow, setCurrentRow] = useState(0); // current row
+    const [currentVerse, setCurrentVerse] = useState<VerseReference | null>(null); // current verse
+    const [isLoading, setIsLoading] = useState(true); // loading state
+    const [gameCompleted, setGameCompleted] = useState(false); // keeps track of wether we can play today
+    const [revealedBoxes, setRevealedBoxes] = useState<number>(-1); // revealed boxes state
+    const [flipAnimations, setFlipAnimations] = useState<Animated.Value[][]>([]); // flip animations state
+    const [showBookModal, setShowBookModal] = useState(false); // show book modal state
+    const [currentInputType, setCurrentInputType] = useState<'book' | 'chapter' | 'verse'>('chapter'); // current input type state
 
     useEffect(() => {
         const setupGame = async () => {
             try {
-                await initDatabase();
+                await initDatabase(); // initialize the database
 
                 // Check if we can play today
-                const canPlay = await checkIfCanPlay();
+                const canPlay = await checkIfCanPlay(); // check if we can play today
                 if (!canPlay) {
-                    setGameCompleted(true);
-                    setIsLoading(false);
+                    setGameCompleted(true); // set game completed state to True because we can't play today
+                    setIsLoading(false); // set loading state to false because we don't need to load a new verse
                     Alert.alert(
                         "Wait until tomorrow",
                         "You can play again tomorrow",
@@ -58,21 +58,21 @@ export default function Versele() {
                                     // Load their last game state to show them
                                     const savedState = await AsyncStorage.getItem('verseleState');
                                     if (savedState) {
-                                        const gameState = JSON.parse(savedState);
-                                        setGuesses(gameState.guesses);
-                                        setCurrentRow(gameState.currentRow);
-                                        setCurrentVerse(gameState.currentVerse);
-                                        setGameCompleted(true);
-                                        setIsLoading(false);
+                                        const gameState = JSON.parse(savedState); // parse the saved state
+                                        setGuesses(gameState.guesses); // set the guesses
+                                        setCurrentRow(gameState.currentRow); // set the current row
+                                        setCurrentVerse(gameState.currentVerse); // set the current verse
+                                        setGameCompleted(true); // set game completed state to True
+                                        setIsLoading(false); // set loading state to false because we don't need to load a new verse
                                     }
                                 }
                             },
                             {
                                 text: "Play Again (Ad)",
                                 onPress: async () => {
-                                    await AsyncStorage.removeItem('lastVerselePlayed');
-                                    await loadNewVerse();
-                                    setGameCompleted(false);
+                                    await AsyncStorage.removeItem('lastVerselePlayed'); // remove the last versele played date
+                                    await loadNewVerse(); // load a new verse
+                                    setGameCompleted(false); // set game completed state to false because we can play today
                                 }
                             }
                         ]
@@ -85,27 +85,33 @@ export default function Versele() {
                 if (hasLoadedState) {
                     return;
                 }
+                // If we can't load saved state, load a new verse
 
-                console.log('Debug - Loading new verse: No restrictions');
                 await loadNewVerse();
             } catch (error) {
                 console.error('Error setting up game:', error);
                 Alert.alert('Error', 'Failed to load game data');
             }
         };
-
+        // Run the setupGame function if we can play
         setupGame();
     }, []);
 
+
+    // save game state whenever one of these states change
     useEffect(() => {
         saveGameState();
     }, [guesses, currentRow, currentVerse, gameCompleted]);
 
+
+    // whenever the current verse changes, initialize the flip animations
     useEffect(() => {
         if (currentVerse) {
             // Initialize flip animations for all MAX_GUESSES rows, 5 boxes per row (1 book + 2 chapter + 2 verse)
             setFlipAnimations(
-                Array(MAX_GUESSES).fill(null).map(() =>
+                // initialize MAX_GUESSES rows which are mapped to the 5 boxes
+                Array(MAX_GUESSES).fill(null).map(() => //create MAX_GUESSES rows which are mapped to the 5 boxes
+                    // create 5 boxes which are mapped to 5 0 values
                     Array(5).fill(null).map(() => new Animated.Value(0))
                 )
             );
@@ -113,20 +119,17 @@ export default function Versele() {
     }, [currentVerse]);
 
     const checkIfCanPlay = async () => {
-        const lastPlayed = await AsyncStorage.getItem('lastVerselePlayed');
-        console.log('Debug - Last Played:', lastPlayed ? new Date(parseInt(lastPlayed)).toString() : 'never played');
-
+        const lastPlayed = await AsyncStorage.getItem('lastVerselePlayed'); // get the last versele played date
         if (lastPlayed) {
-            const lastPlayedDate = new Date(parseInt(lastPlayed));
-            const now = new Date();
+            const lastPlayedDate = new Date(parseInt(lastPlayed)); // parse the last versele played date
+            const now = new Date(); // get the current date
 
-            const isSameDay = lastPlayedDate.getDate() === now.getDate() &&
+            const isSameDay = lastPlayedDate.getDate() === now.getDate() && // check if the day is the same
                 lastPlayedDate.getMonth() === now.getMonth() &&
                 lastPlayedDate.getFullYear() === now.getFullYear();
 
             if (isSameDay) {
-                console.log('Debug - Still waiting for next day');
-                return false;
+                return false; // return false if the day is the same
             }
         }
 
@@ -136,36 +139,21 @@ export default function Versele() {
     const loadNewVerse = async () => {
         try {
             setIsLoading(true);
-            console.log("======= STARTING TO LOAD NEW VERSE =======");
 
             const verse = await getRandomVerseReference();
 
-            // Add detailed debug logging
-            console.log("============ DEBUG VERSE INFO ============");
-            console.log("Verse loaded from database:", JSON.stringify(verse, null, 2));
-            console.log("Verse book:", verse.book);
-            console.log("Verse chapter:", verse.chapter);
-            console.log("Verse verse:", verse.verse);
-            console.log("Verse text:", verse.text);
-            console.log("Verse object type:", Object.prototype.toString.call(verse));
-            console.log("Verse keys:", Object.keys(verse));
-            console.log("=========================================");
 
-            // Set the current verse only
-            setCurrentVerse(verse);
+            setCurrentVerse(verse); // set the current verse    
 
-            console.log("Current verse set to:", JSON.stringify(verse, null, 2));
-            console.log("======= FINISHED LOADING NEW VERSE =======");
-
-            setGuesses(Array(MAX_GUESSES).fill({ book: "", chapterVerse: "" }));
-            setCurrentRow(0);
+            setGuesses(Array(MAX_GUESSES).fill({ book: "", chapterVerse: "" })); // reset the guesses
+            setCurrentRow(0); // reset the current row
 
 
         } catch (error) {
             console.error('Error loading new verse:', error);
             Alert.alert('Error', 'Failed to load new verse');
         } finally {
-            setIsLoading(false);
+            setIsLoading(false); // set loading state to false once we have loaded a new verse
         }
     };
 
@@ -175,24 +163,24 @@ export default function Versele() {
         // Book selection is still handled via the modal
         // We only handle chapter and verse number inputs here
 
-        // Get the current guess
-        const currentGuess = guesses[currentRow];
+
+        const currentGuess = guesses[currentRow]; // get the current guess
 
         if (key === "BACKSPACE") {
             // Handle backspace based on which part we're editing
             if (currentInputType === 'chapter') {
                 // If we have chapter input, delete the last digit
-                const chapterPart = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":")[0] : "";
+                const chapterPart = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":")[0] : ""; // checks for null then splits the chapter part
                 if (chapterPart.length > 0) {
-                    const newChapterPart = chapterPart.slice(0, -1);
+                    const newChapterPart = chapterPart.slice(0, -1); // delete the last digit from the chapter part slice(0,-1)
                     const versePart = currentGuess.chapterVerse && currentGuess.chapterVerse.includes(":")
                         ? currentGuess.chapterVerse.split(":")[1]
-                        : "";
+                        : ""; // checks for null then splits the verse part and grabs the second part past the colon else empty string
 
-                    const newGuesses = [...guesses];
+                    const newGuesses = [...guesses]; // create shallow copy of guesses
                     newGuesses[currentRow] = {
-                        ...newGuesses[currentRow],
-                        chapterVerse: newChapterPart + (versePart ? ":" + versePart : "")
+                        ...newGuesses[currentRow], //new row will have same book and chapterVerse but with the chapter part without the last digit next line will update the chapter part
+                        chapterVerse: newChapterPart + (versePart ? ":" + versePart : "") //replace the chapter part with the new chapter part and add the verse part if it exists leave everything else the same
                     };
                     setGuesses(newGuesses);
                 }
