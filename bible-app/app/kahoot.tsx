@@ -46,6 +46,11 @@ export default function Kahoot() {
     // Add state to track points for current question
     const [currentPoints, setCurrentPoints] = useState(0);
 
+    // Add question counter state
+    const [questionCount, setQuestionCount] = useState(0);
+    const [gameCompleted, setGameCompleted] = useState(false);
+    const TOTAL_QUESTIONS = 12;
+
     useEffect(() => {
         setupGame();
 
@@ -92,6 +97,10 @@ export default function Kahoot() {
     const setupGame = async () => {
         try {
             await initDatabase();
+            // Reset question count and score when starting a new game
+            setQuestionCount(0);
+            setScore(0);
+            setGameCompleted(false);
             await loadNewQuestion();
         } catch (error) {
             console.error('Error setting up game:', error);
@@ -100,10 +109,20 @@ export default function Kahoot() {
 
     const loadNewQuestion = async () => {
         console.log('[DEBUG] Loading new question...');
+
+        // Check if we've reached the question limit
+        if (questionCount >= TOTAL_QUESTIONS) {
+            setGameCompleted(true);
+            return;
+        }
+
         setIsLoading(true);
         setTimerActive(false);
         setShowFeedback(false);
         setShowIntermission(false);
+
+        // Increment question counter
+        setQuestionCount(prev => prev + 1);
 
         // Reset the timer width to full without animation
         timerWidth.setValue(1);
@@ -349,10 +368,41 @@ export default function Kahoot() {
         }
     };
 
+    // Add a function to restart the game
+    const restartGame = () => {
+        setupGame();
+    };
+
+    // Add a game completion screen
+    const renderGameCompleted = () => {
+        return (
+            <View style={styles.gameCompletedContainer}>
+                <Text style={styles.gameCompletedTitle}>Game Completed!</Text>
+                <Text style={styles.finalScoreText}>Final Score</Text>
+                <Text style={styles.finalScoreValue}>{score}</Text>
+                <TouchableOpacity
+                    style={styles.restartButton}
+                    onPress={restartGame}
+                >
+                    <Text style={styles.restartButtonText}>Play Again</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
     if (isLoading || !currentSpeaker) {
         return (
             <View style={styles.container}>
                 <Text>Loading...</Text>
+            </View>
+        );
+    }
+
+    // Show game completed screen if all questions have been answered
+    if (gameCompleted) {
+        return (
+            <View style={styles.container}>
+                {renderGameCompleted()}
             </View>
         );
     }
@@ -381,9 +431,14 @@ export default function Kahoot() {
                         />
                     )}
                 </View>
-                <View style={styles.scoreContainer}>
-                    <Text style={styles.scoreLabel}>SCORE</Text>
-                    <Text style={styles.scoreValue}>{score}</Text>
+                <View style={styles.statsContainer}>
+                    <Text style={styles.questionCounter}>
+                        Question {questionCount}/{TOTAL_QUESTIONS}
+                    </Text>
+                    <View style={styles.scoreContainer}>
+                        <Text style={styles.scoreLabel}>SCORE</Text>
+                        <Text style={styles.scoreValue}>{score}</Text>
+                    </View>
                 </View>
             </View>
 
@@ -494,12 +549,34 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         justifyContent: 'center',
     },
+    statsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+        marginTop: 5,
+    },
+    questionCounter: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: '#5e3023',
+        marginRight: 15,
+        backgroundColor: '#e8d5c4',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 3,
+    },
     scoreContainer: {
         backgroundColor: '#8b4513',
         paddingHorizontal: 15,
         paddingVertical: 6,
         borderRadius: 20,
-        marginTop: 5,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,
@@ -725,5 +802,54 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(255, 255, 255, 0.5)',
         textShadowOffset: { width: 1, height: 1 },
         textShadowRadius: 2,
+    },
+    gameCompletedContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        backgroundColor: 'rgba(245, 230, 211, 0.95)',
+    },
+    gameCompletedTitle: {
+        fontSize: 32,
+        fontWeight: '900',
+        color: '#5e3023',
+        marginBottom: 30,
+        textAlign: 'center',
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+    finalScoreText: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: '#8b4513',
+        marginBottom: 10,
+    },
+    finalScoreValue: {
+        fontSize: 48,
+        fontWeight: '900',
+        color: '#5e3023',
+        marginBottom: 40,
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+    },
+    restartButton: {
+        backgroundColor: '#8b4513',
+        paddingHorizontal: 30,
+        paddingVertical: 15,
+        borderRadius: 25,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 8,
+    },
+    restartButtonText: {
+        color: 'white',
+        fontSize: 20,
+        fontWeight: '800',
+        textAlign: 'center',
     },
 });

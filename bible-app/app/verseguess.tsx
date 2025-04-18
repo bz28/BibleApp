@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Modal, FlatList } from 'react-native';
-import { initDatabase, getRandomSpeaker } from './database/database';
+import { initDatabase, getRandomVerseReference } from './database/database';
 import { Speaker } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { VerseReference } from './database/schema';
 // Bible books in order
 const BIBLE_BOOKS = [
     'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy',
@@ -77,7 +77,7 @@ interface GuessResult {
 export default function VerseGuess() {
     const [currentRound, setCurrentRound] = useState(0);
     const [gameCompleted, setGameCompleted] = useState(false);
-    const [currentSpeaker, setCurrentSpeaker] = useState('');
+    const [currentVerse, setCurrentVerse] = useState('');
     const [actualReference, setActualReference] = useState({ book: '', chapter: 0, verse: 0 });
     const [selectedBook, setSelectedBook] = useState('Genesis');
     const [selectedChapter, setSelectedChapter] = useState(1);
@@ -110,16 +110,18 @@ export default function VerseGuess() {
 
     const loadNewVerse = async () => {
         try {
-            // Get a random verse from the database
-            const speaker = await getRandomSpeaker();
+            // Get a random verse reference from the database
+            const reference = await getRandomVerseReference();
 
-            // Extract book, chapter, verse from the hint
-            // For now, we'll use sample data since we need to implement a proper reference system
-            const randomIndex = Math.floor(Math.random() * SAMPLE_VERSES.length);
-            const sampleVerse = SAMPLE_VERSES[randomIndex];
+            // Set the current verse text
+            setCurrentVerse(reference.text);
 
-            setCurrentSpeaker(speaker.hint);
-            setActualReference(sampleVerse.reference); // This would need to be extracted from verse data
+            // Convert chapter and verse from string to number for the actual reference
+            setActualReference({
+                book: reference.book,
+                chapter: parseInt(reference.chapter, 10),
+                verse: parseInt(reference.verse, 10)
+            });
 
             // Reset selections
             setSelectedBook('Genesis');
@@ -144,7 +146,7 @@ export default function VerseGuess() {
 
         // Save result
         const result: GuessResult = {
-            verseText: currentSpeaker,
+            verseText: currentVerse,
             actualReference,
             guessedReference: { book: selectedBook, chapter: selectedChapter, verse: selectedVerse },
             score: roundScore
@@ -285,7 +287,7 @@ export default function VerseGuess() {
             <Text style={styles.scoreText}>Score: {totalScore}</Text>
 
             <ScrollView style={styles.verseContainer}>
-                <Text style={styles.verseText}>{currentSpeaker}</Text>
+                <Text style={styles.verseText}>{currentVerse}</Text>
             </ScrollView>
 
             <View style={styles.guessContainer}>

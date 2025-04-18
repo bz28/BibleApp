@@ -8,7 +8,7 @@ import { initDatabase } from './database/database';
 export default function Home() {
   const clearStorage = async () => {
     try {
-      await AsyncStorage.clear();
+      await AsyncStorage.clear(); // Clear AsyncStorage
       Alert.alert('Success', 'Storage cleared');
     } catch (error) {
       console.error('Error clearing storage:', error);
@@ -22,7 +22,8 @@ export default function Home() {
       .then(() => console.log("Database initialized successfully!"))
       .catch(error => console.error("Database initialization failed:", error));
   }, []);
-
+  // TODO: add a link to the crossword game
+  //links to the different games
   return (
     <View style={styles.container}>
 
@@ -52,32 +53,7 @@ export default function Home() {
         </Text>
       )}
       {/* Database Fix Button - only in development mode */}
-      {__DEV__ && (
-        <View style={{ marginTop: 20, marginBottom: 10 }}>
-          <Link href="/dbfix" asChild>
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#e74c3c',
-                padding: 10,
-                borderRadius: 5,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                marginVertical: 5,
-                borderWidth: 1,
-                borderColor: '#c0392b',
-              }}
-            >
-              <Text style={{ color: 'white', fontWeight: 'bold', marginLeft: 5 }}>
-                Fix Database Issues
-              </Text>
-            </TouchableOpacity>
-          </Link>
-          <Text style={{ textAlign: 'center', fontSize: 12, color: '#888', marginTop: 5 }}>
-            Use this if you encounter errors in Versele
-          </Text>
-        </View>
-      )}
+
     </View>
   );
 }
