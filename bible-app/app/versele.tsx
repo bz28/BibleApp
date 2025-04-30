@@ -186,16 +186,16 @@ export default function Versele() {
                 }
             } else if (currentInputType === 'verse') {
                 // If we have verse input, delete the last digit
-                const parts = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":") : ["", ""];
+                const parts = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":") : ["", ""]; // splits the chapterVerse into parts and checks for null then splits the verse part and grabs the second part past the colon else empty string
                 const chapterPart = parts[0] || "";
                 const versePart = parts.length > 1 ? parts[1] : "";
 
                 if (versePart.length > 0) {
-                    const newVersePart = versePart.slice(0, -1);
+                    const newVersePart = versePart.slice(0, -1); // delete the last digit from the verse part slice(0,-1)
 
-                    const newGuesses = [...guesses];
+                    const newGuesses = [...guesses]; // create shallow copy of guesses
                     newGuesses[currentRow] = {
-                        ...newGuesses[currentRow],
+                        ...newGuesses[currentRow], //new row will have same book and chapterVerse but with the verse part without the last digit next line will update the verse part
                         chapterVerse: chapterPart + ":" + newVersePart
                     };
                     setGuesses(newGuesses);
@@ -207,19 +207,19 @@ export default function Versele() {
             }
         } else if (key === "ENTER") {
             // If we're entering chapter and have 1-2 digits, move to verse input
-            if (currentInputType === 'chapter') {
-                const chapterPart = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":")[0] : "";
-                if (chapterPart.length > 0) {
-                    setCurrentInputType('verse');
+            if (currentInputType === 'chapter') { // if we are in chapter input
+                const chapterPart = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":")[0] : ""; //checks for null then splits the chapter part
+                if (chapterPart.length > 0) { // if the chapter part is not empty
+                    setCurrentInputType('verse'); // set the current input type to verse
 
                     // Add the colon if it's not there
-                    if (!currentGuess.chapterVerse.includes(":")) {
-                        const newGuesses = [...guesses];
+                    if (!currentGuess.chapterVerse.includes(":")) { // if the chapterVerse does not include a colon
+                        const newGuesses = [...guesses]; // create shallow copy of guesses
                         newGuesses[currentRow] = {
                             ...newGuesses[currentRow],
                             chapterVerse: chapterPart + ":"
                         };
-                        setGuesses(newGuesses);
+                        setGuesses(newGuesses); // set the guesses to the new guesses
                     }
                 }
             }
@@ -229,15 +229,15 @@ export default function Versele() {
                 const chapterPart = parts[0] || "";
                 const versePart = parts.length > 1 ? parts[1] : "";
 
-                if (chapterPart.length > 0 && versePart.length > 0 && currentGuess.book) {
+                if (chapterPart.length > 0 && versePart.length > 0 && currentGuess.book) { // if the chapter part is not empty and the verse part is not empty and the book is not empty
                     // Prevent double guess submission by disabling if already at max guesses
-                    if (currentRow < MAX_GUESSES) {
-                        checkGuess(currentGuess);
+                    if (currentRow < MAX_GUESSES) { // if the current row is less than the max guesses
+                        checkGuess(currentGuess); // check the guess
                     }
 
                     // After submitting, prepare for the next row if game isn't over
-                    if (currentRow < MAX_GUESSES - 1 && !gameCompleted) {
-                        setCurrentInputType('chapter');
+                    if (currentRow < MAX_GUESSES - 1 && !gameCompleted) { // if the current row is less than the max guesses and the game is not over
+                        setCurrentInputType('chapter'); // set the current input type to chapter
                     }
                 }
             }
@@ -245,16 +245,14 @@ export default function Versele() {
             // Handle numeric input
             if (currentInputType === 'chapter') {
                 const chapterPart = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":")[0] : "";
-                const versePart = currentGuess.chapterVerse && currentGuess.chapterVerse.includes(":")
-                    ? currentGuess.chapterVerse.split(":")[1]
-                    : "";
+                const versePart = currentGuess.chapterVerse && currentGuess.chapterVerse.includes(":") ? currentGuess.chapterVerse.split(":")[1] : "";
 
                 // Only allow 2 digits for chapter
                 if (chapterPart.length < 2) {
                     const newGuesses = [...guesses];
                     newGuesses[currentRow] = {
                         ...newGuesses[currentRow],
-                        chapterVerse: chapterPart + key + (versePart ? ":" + versePart : "")
+                        chapterVerse: chapterPart + key + (versePart ? ":" + versePart : "") //when input for chapter if there is verse part add it.
                     };
                     setGuesses(newGuesses);
 
@@ -272,7 +270,8 @@ export default function Versele() {
                         }
                     }
                 }
-            } else if (currentInputType === 'verse') {
+            }
+            else if (currentInputType === 'verse') {
                 const parts = currentGuess.chapterVerse ? currentGuess.chapterVerse.split(":") : ["", ""];
                 const chapterPart = parts[0] || "";
                 const versePart = parts.length > 1 ? parts[1] : "";
@@ -287,11 +286,11 @@ export default function Versele() {
                     setGuesses(newGuesses);
 
                     // If we've entered 2 digits for verse and have a book, automatically submit
-                    if (versePart.length === 1 && currentGuess.book) {
-                        setTimeout(() => {
-                            checkGuess(newGuesses[currentRow]);
+                    if (versePart.length === 1 && currentGuess.book) { //checking for 1 digit because we are adding a new digit
+                        setTimeout(() => { // wait for 500ms before checking the guess
+                            checkGuess(newGuesses[currentRow]); // check the guess
 
-                            // After submitting, prepare for the next row if game isn't over
+                            // After submitting, prepare for the next row by setting next input to chapter.
                             if (currentRow < MAX_GUESSES - 1 && !gameCompleted) {
                                 setCurrentInputType('chapter');
                             }
@@ -304,14 +303,14 @@ export default function Versele() {
 
     const selectBook = (book: string) => {
         const newGuesses = [...guesses];
-        newGuesses[currentRow] = {
+        newGuesses[currentRow] = { //every time you update newguess you create shallow copy then update the property you want to update
             ...newGuesses[currentRow],
             book: book
         };
         setGuesses(newGuesses);
 
-        setShowBookModal(false);
-        setCurrentInputType('chapter');
+        setShowBookModal(false); // close the book modal
+        setCurrentInputType('chapter'); // set the current input type to chapter
     };
 
     const getGuessColor = (rowIndex: number, type: 'book' | 'chapter' | 'colon' | 'verse', digitIndex = 0): string => {
@@ -355,7 +354,7 @@ export default function Versele() {
         // Chapter color - with improved handling of duplicates
         if (type === 'chapter') {
             // Get the specific digit with safety check
-            const digit = chapterStr && digitIndex < chapterStr.length ? chapterStr[digitIndex] : '';
+            const digit = chapterStr && digitIndex < chapterStr.length ? chapterStr[digitIndex] : ''; //checks for null then checks if the digit index is less than the chapterStr length then gets the digit at the digit index else empty string
             const targetDigit = targetChapter && digitIndex < targetChapter.length ? targetChapter[digitIndex] : '';
 
             // If exact match at the specific position, always green
