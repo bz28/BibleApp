@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIn
 import { initDatabase, getRandomVerseReference } from './database/database';
 import { VerseReference } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
 // Bible books in order
 const BIBLE_BOOKS = [
@@ -521,7 +522,10 @@ export default function Versele() {
                                         onPress={() => setShowBookModal(true)}
                                     >
                                         <Text
-                                            style={styles.bookText}
+                                            style={[
+                                                styles.bookText,
+                                                { color: '#111' }
+                                            ]}
                                             numberOfLines={1}
                                         >
                                             {guess.book || ""}
@@ -529,7 +533,10 @@ export default function Versele() {
                                     </TouchableOpacity>
                                 ) : (
                                     <Text
-                                        style={styles.bookText}
+                                        style={[
+                                            styles.bookText,
+                                            { color: '#111' }
+                                        ]}
                                         numberOfLines={1}
                                     >
                                         {guess.book || ""}
@@ -616,7 +623,7 @@ export default function Versele() {
                                             )
                                         }}
                                     >
-                                        <Text style={styles.digitText}>
+                                        <Text style={[styles.digitText, { color: '#111' }]}>
                                             {digit === ' ' ? '' : digit}
                                         </Text>
                                     </Animated.View>
@@ -704,7 +711,7 @@ export default function Versele() {
                                             )
                                         }}
                                     >
-                                        <Text style={styles.digitText}>
+                                        <Text style={[styles.digitText, { color: '#111' }]}>
                                             {digit === ' ' ? '' : digit}
                                         </Text>
                                     </Animated.View>
@@ -1099,70 +1106,86 @@ export default function Versele() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.mainTitle}>Versele</Text>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => {/* TODO: go home */ }}>
+                    <Ionicons name="home" size={28} color="#fff" style={styles.headerIcon} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>SCRIPTURLE</Text>
+                <View style={styles.headerIconsRight}>
+                    <TouchableOpacity onPress={() => {/* TODO: help modal */ }}>
+                        <Feather name="help-circle" size={26} color="#fff" style={styles.headerIcon} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {/* TODO: settings */ }}>
+                        <Ionicons name="settings" size={26} color="#fff" style={styles.headerIcon} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {/* TODO: share */ }}>
+                        <Feather name="share-2" size={24} color="#fff" style={styles.headerIcon} />
+                    </TouchableOpacity>
+                </View>
+            </View>
 
             {/* Verse display */}
             <View style={styles.verseBox}>
                 <Text style={styles.verseText}>
                     {currentVerse.text || "Loading verse..."}
                 </Text>
+                <Text style={styles.verseRef}>— ? ??:??</Text>
             </View>
 
-            <Text style={styles.subtitle}>Guess the Bible Reference</Text>
-
-            {/* Wrap grid in a container with proper overflow handling */}
+            {/* Grid */}
             <View style={styles.gridContainer}>
                 <View style={styles.grid}>{renderGrid()}</View>
             </View>
 
-            {/* Always show keyboard unless game is completed */}
+            {/* Keyboard */}
             {!gameCompleted && (
                 <View style={styles.keyboard}>
-                    {[["1", "2", "3", "4", "5"], ["6", "7", "8", "9", "0", "BACKSPACE", "ENTER"]].map((row, rowIndex) => (
-                        <View key={rowIndex} style={styles.keyboardRow}>
-                            {row.map((key) => {
-                                if (key === "ENTER") {
-                                    return (
-                                        <TouchableOpacity
-                                            key={key}
-                                            style={[styles.keyEnter]}
-                                            onPress={() => handleKeyPress(key)}
-                                        >
-                                            <Text style={styles.keyText}>{key}</Text>
-                                        </TouchableOpacity>
-                                    );
-                                } else if (key === "BACKSPACE") {
-                                    return (
-                                        <TouchableOpacity
-                                            key={key}
-                                            style={styles.key}
-                                            onPress={() => handleKeyPress(key)}
-                                        >
-                                            <Text style={styles.keyText}>⌫</Text>
-                                        </TouchableOpacity>
-                                    );
-                                } else {
-                                    return (
-                                        <TouchableOpacity
-                                            key={key}
-                                            style={[
-                                                styles.key,
-                                                { backgroundColor: getKeyBackground(key) }
-                                            ]}
-                                            onPress={() => handleKeyPress(key)}
-                                        >
-                                            <Text style={[
-                                                styles.keyText,
-                                                getNumberKeyStates()[key] !== 'unused' && { color: '#fff' }
-                                            ]}>
-                                                {key}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                }
-                            })}
-                        </View>
-                    ))}
+                    <View style={styles.keyboardRow}>
+                        {/* Choose a book key only when book is highlighted */}
+                        {currentInputType === 'book' && (
+                            <TouchableOpacity
+                                style={styles.keyBook}
+                                onPress={() => setShowBookModal(true)}
+                            >
+                                <Ionicons name="book-outline" size={32} color="#111" />
+                            </TouchableOpacity>
+                        )}
+                        {/* Number keys 0-4 */}
+                        {[0, 1, 2, 3, 4].map((n) => (
+                            <TouchableOpacity
+                                key={n}
+                                style={[styles.key, { backgroundColor: getKeyBackground(String(n)) }]}
+                                onPress={() => handleKeyPress(String(n))}
+                            >
+                                <Text style={[styles.keyText, getNumberKeyStates()[String(n)] !== 'unused' && { color: '#fff' }]}>{n}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                            style={styles.key}
+                            onPress={() => handleKeyPress("BACKSPACE")}
+                        >
+                            <Feather name="delete" size={28} color="#111" />
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.keyboardRow}>
+                        {/* Number keys 5-9 */}
+                        {[5, 6, 7, 8, 9].map((n) => (
+                            <TouchableOpacity
+                                key={n}
+                                style={[styles.key, { backgroundColor: getKeyBackground(String(n)) }]}
+                                onPress={() => handleKeyPress(String(n))}
+                            >
+                                <Text style={[styles.keyText, getNumberKeyStates()[String(n)] !== 'unused' && { color: '#fff' }]}>{n}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                            style={styles.keyEnter}
+                            onPress={() => handleKeyPress("ENTER")}
+                        >
+                            <Feather name="corner-down-left" size={28} color="#111" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             )}
 
@@ -1206,202 +1229,114 @@ export default function Versele() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: "flex-start",
+        backgroundColor: "#111",
         alignItems: "center",
-        padding: 15,
-        backgroundColor: "#f5e6d3",
-        position: 'relative', // For proper z-index stacking
-        overflow: 'hidden', // Prevent content from extending beyond screen
+        padding: 0,
     },
-    centered: {
-        justifyContent: 'center',
+    header: {
+        width: '100%',
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#111',
+        paddingTop: 40,
+        paddingBottom: 16,
+        paddingHorizontal: 18,
     },
-    mainTitle: {
-        fontSize: 28,
-        fontWeight: "900",
-        marginBottom: 10,
-        textAlign: 'center',
-        color: '#2c1810',
-        letterSpacing: 1,
+    headerTitle: {
+        color: '#fff',
+        fontSize: 32,
+        fontWeight: '900',
+        letterSpacing: 2,
         textTransform: 'uppercase',
-        textShadowColor: 'rgba(0, 0, 0, 0.2)',
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
+        flex: 1,
+        textAlign: 'center',
+    },
+    headerIconsRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    headerIcon: {
+        marginHorizontal: 4,
     },
     verseBox: {
-        padding: 10,
-        backgroundColor: '#e8d5c4',
+        backgroundColor: '#222',
         borderRadius: 8,
-        marginBottom: 10,
-        width: '100%',
-        borderWidth: 2,
-        borderColor: '#8b4513',
+        marginTop: 12,
+        marginBottom: 18,
+        padding: 16,
+        width: '90%',
+        alignSelf: 'center',
     },
     verseText: {
-        color: '#2c1810',
-        fontSize: 14,
-        fontWeight: "700",
-        textAlign: 'center',
-        lineHeight: 18,
-    },
-    subtitle: {
+        color: '#fff',
         fontSize: 18,
-        fontWeight: "500",
-        marginBottom: 10,
         textAlign: 'center',
-        color: '#5c2c1d',
+        fontWeight: '400',
+        marginBottom: 8,
+    },
+    verseRef: {
+        color: '#ccc',
+        fontSize: 16,
+        textAlign: 'center',
         fontStyle: 'italic',
     },
     gridContainer: {
         width: '100%',
-        overflow: 'visible', // Important - allow animations to extend beyond container
-        minHeight: SCREEN_HEIGHT * 0.3, // Ensure enough height for animations
-        marginBottom: 20,
-        position: 'relative', // Needed for absolute positioning of animations
-        zIndex: 5, // Ensure it's above other elements
+        alignItems: 'center',
+        marginBottom: 12,
     },
     grid: {
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    row: {
-        flexDirection: "row",
-        marginBottom: 8,
-        justifyContent: "center",
-        height: 50, // Fixed height to prevent layout shifts
-        alignItems: 'center',
-        width: '100%',
-        position: 'relative', // For proper child positioning
-    },
-    bookBox: {
-        width: SCREEN_WIDTH * 0.30,
-        height: 40,
-        margin: 3,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 2,
-        borderColor: "#8b4513",
-        backgroundColor: "#fff",
-        borderRadius: 4,
-        zIndex: 1, // Ensure it renders above other elements
-    },
-    digitBox: {
-        width: 30,
-        height: 40,
-        margin: 3,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 2,
-        borderColor: "#8b4513",
-        backgroundColor: "#fff",
-        borderRadius: 4,
-        zIndex: 1, // Ensure it renders above other elements
-    },
-    boxTouchable: {
-        width: '100%',
-        height: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'relative', // For proper child positioning
-    },
-    bookText: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: '#1a1a1a',
-        textAlign: 'center',
-        paddingHorizontal: 2,
-        // Text should not extend beyond container
-        width: '100%',
-    },
-    digitText: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: '#1a1a1a',
-    },
-    inputContainer: {
-        flexDirection: "row",
-        marginBottom: 10,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    bookSelector: {
-        width: SCREEN_WIDTH * 0.30,
-        height: 40,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 2,
-        borderColor: "#8b4513",
-        backgroundColor: "#d4b08c",
-        borderRadius: 4,
-        marginRight: 5,
-    },
-    selectorText: {
-        fontSize: 12,
-        fontWeight: "700",
-        color: '#2c1810',
-    },
-    digitInput: {
-        width: 30,
-        height: 40,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 2,
-        borderColor: "#8b4513",
-        backgroundColor: "#fff",
-        borderRadius: 4,
-        marginHorizontal: 2,
-    },
-    inputText: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: '#1a1a1a',
-    },
     keyboard: {
         width: '100%',
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: 8,
+        marginBottom: 12,
     },
     keyboardRow: {
-        flexDirection: "row",
-        justifyContent: "center",
-        marginBottom: 5,
-        flexWrap: "wrap",
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
     },
     key: {
-        width: 45,
-        height: 45,
-        margin: 4,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: '#8b4513',
-        borderRadius: 4,
-        backgroundColor: "#e8d5c4",
-    },
-    keyEnter: {
-        width: 80,
-        height: 45,
-        margin: 4,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: '#8b4513',
-        borderRadius: 4,
-        backgroundColor: "#d4b08c",
+        backgroundColor: '#fff',
+        borderRadius: 6,
+        marginHorizontal: 4,
+        paddingVertical: 12,
+        paddingHorizontal: 18,
+        minWidth: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     keyText: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: '#2c1810',
+        color: '#111',
+        fontSize: 22,
+        fontWeight: '700',
+        textAlign: 'center',
     },
-    loadingText: {
-        marginTop: 12,
-        fontSize: 18,
-        fontWeight: "600",
-        color: '#1a1a1a',
-        fontStyle: 'italic',
+    keyBook: {
+        backgroundColor: '#fff',
+        borderRadius: 6,
+        marginHorizontal: 4,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    keyEnter: {
+        backgroundColor: '#fff',
+        borderRadius: 6,
+        marginHorizontal: 4,
+        paddingVertical: 12,
+        paddingHorizontal: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     modalContainer: {
         flex: 1,
@@ -1495,5 +1430,72 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 2,
+    },
+    centered: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 18,
+        fontWeight: "600",
+        color: '#1a1a1a',
+        fontStyle: 'italic',
+    },
+    row: {
+        flexDirection: "row",
+        marginBottom: 8,
+        justifyContent: "center",
+        height: 48,
+        alignItems: 'center',
+        width: '100%',
+        position: 'relative',
+    },
+    bookBox: {
+        width: SCREEN_WIDTH * 0.22,
+        height: 40,
+        margin: 3,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#fff",
+        backgroundColor: "#111",
+        borderRadius: 4,
+        zIndex: 1,
+    },
+    digitBox: {
+        width: 32,
+        height: 40,
+        margin: 3,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#fff",
+        backgroundColor: "#111",
+        borderRadius: 4,
+        zIndex: 1,
+    },
+    boxTouchable: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+    },
+    bookText: {
+        fontSize: 15,
+        fontWeight: "700",
+        color: '#fff',
+        textAlign: 'center',
+        paddingHorizontal: 2,
+        width: '100%',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    digitText: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: '#fff',
+        textAlign: 'center',
     },
 }); 
