@@ -1108,9 +1108,11 @@ export default function Versele() {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => {/* TODO: go home */ }}>
-                    <Ionicons name="home" size={28} color="#fff" style={styles.headerIcon} />
-                </TouchableOpacity>
+                <View style={styles.headerIconsLeft}>
+                    <TouchableOpacity onPress={() => {/* TODO: go home */ }}>
+                        <Ionicons name="home" size={28} color="#fff" style={styles.headerIcon} />
+                    </TouchableOpacity>
+                </View>
                 <Text style={styles.headerTitle}>SCRIPTURLE</Text>
                 <View style={styles.headerIconsRight}>
                     <TouchableOpacity onPress={() => {/* TODO: help modal */ }}>
@@ -1245,17 +1247,27 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         color: '#fff',
-        fontSize: 32,
+        fontSize: 20,
         fontWeight: '900',
-        letterSpacing: 2,
+        letterSpacing: 0.5,
         textTransform: 'uppercase',
         flex: 1,
         textAlign: 'center',
+        marginLeft: -20,
+        marginRight: 8,
+    },
+    headerIconsLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        minWidth: 100,
+        justifyContent: 'flex-start',
     },
     headerIconsRight: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
+        minWidth: 100,
+        justifyContent: 'flex-end',
     },
     headerIcon: {
         marginHorizontal: 4,
