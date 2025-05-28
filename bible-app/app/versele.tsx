@@ -4,6 +4,7 @@ import { initDatabase, getRandomVerseReference } from './database/database';
 import { VerseReference } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 // Bible books in order
 const BIBLE_BOOKS = [
@@ -27,6 +28,7 @@ const SCREEN_HEIGHT = Dimensions.get("window").height; // height of the screen
 type DigitState = 'correct' | 'present' | 'absent' | 'unused';
 
 export default function Versele() {
+    const router = useRouter();
     const [guesses, setGuesses] = useState<{ book: string, chapterVerse: string }[]>(
         Array(MAX_GUESSES).fill({ book: "", chapterVerse: "" }) // initial guesses
     );
@@ -37,6 +39,7 @@ export default function Versele() {
     const [revealedBoxes, setRevealedBoxes] = useState<number>(-1); // revealed boxes state
     const [flipAnimations, setFlipAnimations] = useState<Animated.Value[][]>([]); // flip animations state
     const [showBookModal, setShowBookModal] = useState(false); // show book modal state
+    const [showHelpModal, setShowHelpModal] = useState(false); // show help modal state
     const [currentInputType, setCurrentInputType] = useState<'book' | 'chapter' | 'verse'>('chapter'); // current input type state
 
     useEffect(() => {
@@ -1109,13 +1112,13 @@ export default function Versele() {
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerIconsLeft}>
-                    <TouchableOpacity onPress={() => {/* TODO: go home */ }}>
+                    <TouchableOpacity onPress={() => router.push('/')}>
                         <Ionicons name="home" size={28} color="#fff" style={styles.headerIcon} />
                     </TouchableOpacity>
                 </View>
                 <Text style={styles.headerTitle}>SCRIPTURLE</Text>
                 <View style={styles.headerIconsRight}>
-                    <TouchableOpacity onPress={() => {/* TODO: help modal */ }}>
+                    <TouchableOpacity onPress={() => setShowHelpModal(true)}>
                         <Feather name="help-circle" size={26} color="#fff" style={styles.headerIcon} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {/* TODO: settings */ }}>
@@ -1220,6 +1223,69 @@ export default function Versele() {
                             onPress={() => setShowBookModal(false)}
                         >
                             <Text style={styles.modalCloseText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Help Modal */}
+            <Modal
+                visible={showHelpModal}
+                animationType="slide"
+                transparent={true}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>How to Play SCRIPTURLE</Text>
+                        <ScrollView style={styles.helpScrollView} showsVerticalScrollIndicator={true}>
+                            <Text style={styles.helpText}>
+                                <Text style={styles.helpBold}>Goal:</Text> Guess the Bible verse reference in 5 tries or less!
+                            </Text>
+
+                            <Text style={styles.helpText}>
+                                <Text style={styles.helpBold}>How to Play:</Text>
+                            </Text>
+                            <Text style={styles.helpText}>
+                                • Tap the book box to select a Bible book{'\n'}
+                                • Enter the chapter number (1-2 digits){'\n'}
+                                • Enter the verse number (1-2 digits){'\n'}
+                                • Press Enter to submit your guess
+                            </Text>
+
+                            <Text style={styles.helpText}>
+                                <Text style={styles.helpBold}>Color Coding:</Text>
+                            </Text>
+                            <View style={styles.colorExample}>
+                                <View style={[styles.colorBox, { backgroundColor: '#5B8A51' }]} />
+                                <Text style={styles.colorText}>Green = Correct position</Text>
+                            </View>
+                            <View style={styles.colorExample}>
+                                <View style={[styles.colorBox, { backgroundColor: '#B59F3B' }]} />
+                                <Text style={styles.colorText}>Yellow = Wrong position</Text>
+                            </View>
+                            <View style={styles.colorExample}>
+                                <View style={[styles.colorBox, { backgroundColor: '#A94442' }]} />
+                                <Text style={styles.colorText}>Red = Not in reference</Text>
+                            </View>
+
+                            <Text style={styles.helpText}>
+                                <Text style={styles.helpBold}>Example:</Text> If the answer is "John 3:16" and you guess "John 1:16", the chapter "1" would be yellow (wrong position) and the verse "16" would be green (correct).
+                            </Text>
+
+                            <Text style={styles.helpText}>
+                                <Text style={styles.helpBold}>Tips:</Text>
+                            </Text>
+                            <Text style={styles.helpText}>
+                                • For books: Yellow means you're within 5 books of the correct answer{'\n'}
+                                • Pay attention to the keyboard colors - they show which numbers you've used{'\n'}
+                                • You can only play once per day!
+                            </Text>
+                        </ScrollView>
+                        <TouchableOpacity
+                            style={styles.modalCloseButton}
+                            onPress={() => setShowHelpModal(false)}
+                        >
+                            <Text style={styles.modalCloseText}>Got it!</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -1511,5 +1577,34 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: '#fff',
         textAlign: 'center',
+    },
+    helpScrollView: {
+        maxHeight: 300,
+        width: '100%',
+        marginBottom: 10,
+    },
+    helpText: {
+        fontSize: 16,
+        color: '#2c1810',
+        marginBottom: 12,
+        lineHeight: 22,
+    },
+    helpBold: {
+        fontWeight: "700",
+    },
+    colorExample: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    colorBox: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
+        marginRight: 10,
+    },
+    colorText: {
+        fontSize: 16,
+        color: '#2c1810',
     },
 }); 
