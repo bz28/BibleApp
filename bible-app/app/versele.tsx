@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated, Modal, FlatList, ScrollView, Easing } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, ActivityIndicator, Animated, Modal, FlatList, ScrollView, Easing, Image } from "react-native";
 import { initDatabase, getRandomVerseReference } from './database/database';
 import { VerseReference } from './database/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1145,51 +1145,63 @@ export default function Versele() {
 
             {/* Keyboard */}
             {!gameCompleted && (
-                <View style={styles.keyboard}>
-                    <View style={styles.keyboardRow}>
-                        {/* Choose a book key only when book is highlighted */}
-                        {currentInputType === 'book' && (
-                            <TouchableOpacity
-                                style={styles.keyBook}
-                                onPress={() => setShowBookModal(true)}
-                            >
-                                <Ionicons name="book-outline" size={32} color="#111" />
-                            </TouchableOpacity>
-                        )}
-                        {/* Number keys 0-4 */}
-                        {[0, 1, 2, 3, 4].map((n) => (
-                            <TouchableOpacity
-                                key={n}
-                                style={[styles.key, { backgroundColor: getKeyBackground(String(n)) }]}
-                                onPress={() => handleKeyPress(String(n))}
-                            >
-                                <Text style={[styles.keyText, getNumberKeyStates()[String(n)] !== 'unused' && { color: '#fff' }]}>{n}</Text>
-                            </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity
-                            style={styles.key}
-                            onPress={() => handleKeyPress("BACKSPACE")}
-                        >
-                            <Feather name="delete" size={28} color="#111" />
-                        </TouchableOpacity>
+                <View style={styles.keyboardContainer}>
+                    {/* Bible Logo */}
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require('../assets/images/biblelogo.png')}
+                            style={styles.bibleLogo}
+                            resizeMode="contain"
+                        />
                     </View>
-                    <View style={styles.keyboardRow}>
-                        {/* Number keys 5-9 */}
-                        {[5, 6, 7, 8, 9].map((n) => (
+
+                    {/* Keyboard */}
+                    <View style={styles.keyboard}>
+                        <View style={styles.keyboardRow}>
+                            {/* Choose a book key only when book is highlighted */}
+                            {currentInputType === 'book' && (
+                                <TouchableOpacity
+                                    style={styles.keyBook}
+                                    onPress={() => setShowBookModal(true)}
+                                >
+                                    <Ionicons name="book-outline" size={24} color="#111" />
+                                </TouchableOpacity>
+                            )}
+                            {/* Number keys 0-4 */}
+                            {[0, 1, 2, 3, 4].map((n) => (
+                                <TouchableOpacity
+                                    key={n}
+                                    style={[styles.key, { backgroundColor: getKeyBackground(String(n)) }]}
+                                    onPress={() => handleKeyPress(String(n))}
+                                >
+                                    <Text style={[styles.keyText, getNumberKeyStates()[String(n)] !== 'unused' && { color: '#fff' }]}>{n}</Text>
+                                </TouchableOpacity>
+                            ))}
                             <TouchableOpacity
-                                key={n}
-                                style={[styles.key, { backgroundColor: getKeyBackground(String(n)) }]}
-                                onPress={() => handleKeyPress(String(n))}
+                                style={styles.key}
+                                onPress={() => handleKeyPress("BACKSPACE")}
                             >
-                                <Text style={[styles.keyText, getNumberKeyStates()[String(n)] !== 'unused' && { color: '#fff' }]}>{n}</Text>
+                                <Feather name="delete" size={20} color="#111" />
                             </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity
-                            style={styles.keyEnter}
-                            onPress={() => handleKeyPress("ENTER")}
-                        >
-                            <Feather name="corner-down-left" size={28} color="#111" />
-                        </TouchableOpacity>
+                        </View>
+                        <View style={styles.keyboardRow}>
+                            {/* Number keys 5-9 */}
+                            {[5, 6, 7, 8, 9].map((n) => (
+                                <TouchableOpacity
+                                    key={n}
+                                    style={[styles.key, { backgroundColor: getKeyBackground(String(n)) }]}
+                                    onPress={() => handleKeyPress(String(n))}
+                                >
+                                    <Text style={[styles.keyText, getNumberKeyStates()[String(n)] !== 'unused' && { color: '#fff' }]}>{n}</Text>
+                                </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity
+                                style={styles.keyEnter}
+                                onPress={() => handleKeyPress("ENTER")}
+                            >
+                                <Feather name="corner-down-left" size={20} color="#111" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             )}
@@ -1370,11 +1382,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    keyboard: {
+    keyboardContainer: {
         width: '100%',
         alignItems: 'center',
         marginTop: 8,
         marginBottom: 12,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
     },
     keyboardRow: {
         flexDirection: 'row',
@@ -1385,34 +1400,34 @@ const styles = StyleSheet.create({
     key: {
         backgroundColor: '#fff',
         borderRadius: 6,
-        marginHorizontal: 4,
-        paddingVertical: 12,
-        paddingHorizontal: 18,
-        minWidth: 44,
+        marginHorizontal: 2,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        minWidth: 36,
         alignItems: 'center',
         justifyContent: 'center',
     },
     keyText: {
         color: '#111',
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: '700',
         textAlign: 'center',
     },
     keyBook: {
         backgroundColor: '#fff',
         borderRadius: 6,
-        marginHorizontal: 4,
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        marginHorizontal: 2,
+        paddingVertical: 6,
+        paddingHorizontal: 8,
         alignItems: 'center',
         justifyContent: 'center',
     },
     keyEnter: {
         backgroundColor: '#fff',
         borderRadius: 6,
-        marginHorizontal: 4,
-        paddingVertical: 12,
-        paddingHorizontal: 18,
+        marginHorizontal: 2,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -1606,5 +1621,20 @@ const styles = StyleSheet.create({
     colorText: {
         fontSize: 16,
         color: '#2c1810',
+    },
+    logoContainer: {
+        width: 120,
+        height: 80,
+        marginRight: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    bibleLogo: {
+        width: '100%',
+        height: '120%',
+    },
+    keyboard: {
+        alignItems: 'center',
+        flex: 1,
     },
 }); 
