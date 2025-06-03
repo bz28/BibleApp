@@ -520,20 +520,15 @@ export default function Versele() {
                                 }}
                             >
                                 {isCurrentRow && !gameCompleted ? (
-                                    <TouchableOpacity
-                                        style={styles.boxTouchable}
-                                        onPress={() => setShowBookModal(true)}
+                                    <Text
+                                        style={[
+                                            styles.bookText,
+                                            { color: '#111' }
+                                        ]}
+                                        numberOfLines={1}
                                     >
-                                        <Text
-                                            style={[
-                                                styles.bookText,
-                                                { color: '#111' }
-                                            ]}
-                                            numberOfLines={1}
-                                        >
-                                            {guess.book || ""}
-                                        </Text>
-                                    </TouchableOpacity>
+                                        {guess.book || ""}
+                                    </Text>
                                 ) : (
                                     <Text
                                         style={[
@@ -1148,11 +1143,21 @@ export default function Versele() {
                 <View style={styles.keyboardContainer}>
                     {/* Bible Logo */}
                     <View style={styles.logoContainer}>
-                        <Image
-                            source={require('../assets/images/biblelogo.png')}
-                            style={styles.bibleLogo}
-                            resizeMode="contain"
-                        />
+                        <TouchableOpacity
+                            onPress={() => setShowBookModal(true)}
+                            style={{
+                                width: '100%',
+                                height: '500%',
+                                justifyContent: 'center',
+                                alignItems: 'center'
+                            }}
+                        >
+                            <Image
+                                source={require('../assets/images/biblelogo.png')}
+                                style={styles.bibleLogo}
+                                resizeMode="contain"
+                            />
+                        </TouchableOpacity>
                     </View>
 
                     {/* Keyboard */}
@@ -1625,14 +1630,14 @@ const styles = StyleSheet.create({
     },
     logoContainer: {
         width: 120,
-        height: 90,
+        height: 110,
         marginRight: 0,
         justifyContent: 'center',
         alignItems: 'flex-start',
     },
     bibleLogo: {
-        width: '90%',
-        height: '140%',
+        width: '70%',
+        height: 110,
     },
     keyboard: {
         alignItems: 'center',
